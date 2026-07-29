@@ -3,16 +3,21 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Comparar fracciones</title>
+    <title>Mathias Garcia | Fracciones</title>
+    <meta name="theme-color" content="#f97316" />
+    <meta name="description" content="Practica visual para comparar fracciones con Mathias Garcia." />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="icons/icon-192.svg" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
     <main class="app">
       <section class="hero">
-        <p class="eyebrow">Practica rapida</p>
-        <h1>Comparar fracciones jugando</h1>
+        <p class="eyebrow">Matematicas visuales</p>
+        <h1>Mathias Garcia | Fracciones</h1>
         <p class="subtitle">
-          Mira las dos fracciones, toca la mayor y descubre que truco usar.
+          Practica comparacion de fracciones de forma visual, rapida y clara.
         </p>
       </section>
 
@@ -75,5 +80,12 @@
     </main>
 
     <script src="app.js"></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('./service-worker.js');
+        });
+      }
+    </script>
   </body>
   </html>

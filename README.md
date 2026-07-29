@@ -1,4 +1,4 @@
-# Practica de comparacion de fracciones
+# Mathias Garcia | Fracciones
 
 Mini app web para practicar comparacion de fracciones con un nino.
 
@@ -26,6 +26,13 @@ La forma mas simple es usar GitHub Pages.
 La URL final sera algo parecido a:
 
 `https://tu-usuario.github.io/tu-repositorio/`
+
+## Instalar como app en movil o tablet
+
+- En iPhone o iPad: abre la web en Safari y usa `Compartir > Anadir a pantalla de inicio`.
+- En Android: abre la web en Chrome y usa `Anadir a pantalla principal` o `Instalar app`.
+
+La app queda con icono propio y puede abrirse como si fuera una aplicacion.
 
 ## Incluye
 
