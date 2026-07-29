@@ -1,0 +1,9 @@
+{
+  "name": "fraction-compare-practice",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Practica comparacion de fracciones para ninos",
+  "scripts": {
+    "start": "node server.js"
+  }
+}

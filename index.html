@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Comparar fracciones</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app">
+      <section class="hero">
+        <p class="eyebrow">Practica rapida</p>
+        <h1>Comparar fracciones jugando</h1>
+        <p class="subtitle">
+          Mira las dos fracciones, toca la mayor y descubre que truco usar.
+        </p>
+      </section>
+
+      <section class="scoreboard">
+        <article class="stat">
+          <span class="label">Aciertos</span>
+          <strong id="correctCount">0</strong>
+        </article>
+        <article class="stat">
+          <span class="label">Racha</span>
+          <strong id="streakCount">0</strong>
+        </article>
+        <article class="stat">
+          <span class="label">Nivel</span>
+          <strong id="modeLabel">Mixto</strong>
+        </article>
+      </section>
+
+      <section class="controls">
+        <button class="mode-button active" data-mode="mixed">Mixto</button>
+        <button class="mode-button" data-mode="same-denominator">Mismo denominador</button>
+        <button class="mode-button" data-mode="same-numerator">Mismo numerador</button>
+        <button class="mode-button" data-mode="cross">Multiplica en cruz</button>
+      </section>
+
+      <section class="challenge-card">
+        <p id="promptText" class="prompt">Toca la fraccion mayor</p>
+
+        <div class="fractions" id="fractionsContainer">
+          <button class="fraction-button" id="leftFraction" type="button"></button>
+          <div class="vs">o</div>
+          <button class="fraction-button" id="rightFraction" type="button"></button>
+        </div>
+
+        <div class="actions">
+          <button id="hintButton" class="secondary" type="button">Ver pista</button>
+          <button id="nextButton" class="secondary" type="button">Siguiente</button>
+        </div>
+
+        <div id="feedbackBox" class="feedback" aria-live="polite"></div>
+      </section>
+
+      <section class="guide">
+        <h2>Truco para memorizar</h2>
+        <div class="guide-grid">
+          <article>
+            <h3>Mismo denominador</h3>
+            <p>Gana el numerador mayor.</p>
+          </article>
+          <article>
+            <h3>Mismo numerador</h3>
+            <p>Gana el denominador menor.</p>
+          </article>
+          <article>
+            <h3>Todo diferente</h3>
+            <p>Multiplica en cruz y compara.</p>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+  </html>
