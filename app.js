@@ -24,6 +24,19 @@ const hintButton = document.getElementById('hintButton');
 const nextButton = document.getElementById('nextButton');
 const modeButtons = Array.from(document.querySelectorAll('.mode-button'));
 
+function updateActionLabels() {
+  if (state.answered) {
+    hintButton.textContent = 'Ver explicacion';
+    nextButton.textContent = 'Nueva pregunta';
+    promptText.textContent = 'Pulsa "Nueva pregunta" para seguir';
+    return;
+  }
+
+  hintButton.textContent = 'Ver pista';
+  nextButton.textContent = 'Siguiente';
+  promptText.textContent = 'Toca la fraccion mayor';
+}
+
 function randomInt(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
@@ -35,10 +48,64 @@ function gcd(a, b) {
 function buildFractionMarkup(numerator, denominator) {
   return `
     <span class="fraction" aria-label="${numerator} partido ${denominator}">
+      <span class="pizza-wrap" aria-hidden="true">
+        ${buildPizzaMarkup(numerator, denominator)}
+      </span>
       <span>${numerator}</span>
       <span class="line"></span>
       <span>${denominator}</span>
     </span>
+  `;
+}
+
+function polarToCartesian(centerX, centerY, radius, angleInDegrees) {
+  const angleInRadians = ((angleInDegrees - 90) * Math.PI) / 180;
+
+  return {
+    x: centerX + radius * Math.cos(angleInRadians),
+    y: centerY + radius * Math.sin(angleInRadians),
+  };
+}
+
+function createSlicePath(startAngle, endAngle) {
+  const start = polarToCartesian(50, 50, 44, endAngle);
+  const end = polarToCartesian(50, 50, 44, startAngle);
+  const largeArcFlag = endAngle - startAngle <= 180 ? '0' : '1';
+
+  return [
+    `M 50 50`,
+    `L ${start.x} ${start.y}`,
+    `A 44 44 0 ${largeArcFlag} 0 ${end.x} ${end.y}`,
+    'Z',
+  ].join(' ');
+}
+
+function buildPizzaMarkup(numerator, denominator) {
+  const slices = [];
+  const step = 360 / denominator;
+
+  for (let index = 0; index < denominator; index += 1) {
+    const startAngle = index * step;
+    const endAngle = startAngle + step;
+    const isFilled = index < numerator;
+
+    slices.push(`
+      <path
+        d="${createSlicePath(startAngle, endAngle)}"
+        fill="${isFilled ? '#f97316' : '#fff7ed'}"
+        stroke="#17324d"
+        stroke-width="2"
+        stroke-linejoin="round"
+      ></path>
+    `);
+  }
+
+  return `
+    <svg class="pizza" viewBox="0 0 100 100" role="img" aria-label="Pizza con ${numerator} trozos pintados de ${denominator}">
+      <circle cx="50" cy="50" r="44" fill="#ffffff"></circle>
+      ${slices.join('')}
+      <circle cx="50" cy="50" r="44" fill="none" stroke="#17324d" stroke-width="2.5"></circle>
+    </svg>
   `;
 }
 
@@ -154,7 +221,14 @@ function getCorrectSide(challenge) {
 function resetButtons() {
   [leftFractionButton, rightFractionButton].forEach((button) => {
     button.classList.remove('correct', 'wrong');
+    button.disabled = false;
   });
+}
+
+function setButtonState(button, stateClass) {
+  if (stateClass) {
+    button.classList.add(stateClass);
+  }
 }
 
 function renderChallenge() {
@@ -174,8 +248,8 @@ function renderChallenge() {
 
   feedbackBox.className = 'feedback';
   feedbackBox.textContent = 'Elige una opcion o pulsa "Ver pista".';
-  promptText.textContent = 'Toca la fraccion mayor';
   modeLabel.textContent = modeLabelMap[state.mode];
+  updateActionLabels();
 }
 
 function showHint() {
@@ -204,11 +278,14 @@ function answer(side) {
     feedbackBox.textContent = `Casi. La correcta era ${correctSide === 'left' ? 'la izquierda' : 'la derecha'}. ${state.currentChallenge.trick} ${state.currentChallenge.explanation}`;
   }
 
-  leftFractionButton.classList.add(correctSide === 'left' ? 'correct' : side === 'left' ? 'wrong' : '');
-  rightFractionButton.classList.add(correctSide === 'right' ? 'correct' : side === 'right' ? 'wrong' : '');
+  setButtonState(leftFractionButton, correctSide === 'left' ? 'correct' : side === 'left' ? 'wrong' : '');
+  setButtonState(rightFractionButton, correctSide === 'right' ? 'correct' : side === 'right' ? 'wrong' : '');
+  leftFractionButton.disabled = true;
+  rightFractionButton.disabled = true;
 
   correctCount.textContent = state.correct;
   streakCount.textContent = state.streak;
+  updateActionLabels();
 }
 
 leftFractionButton.addEventListener('click', () => answer('left'));
