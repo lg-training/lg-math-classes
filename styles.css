@@ -49,8 +49,19 @@ h1 {
   line-height: 1.5;
 }
 
+.hero-note {
+  max-width: 700px;
+  margin: 14px auto 0;
+  padding: 12px 16px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(23, 50, 77, 0.08);
+  font-size: 0.98rem;
+  line-height: 1.5;
+}
+
 .scoreboard,
-.controls,
+.panel,
 .challenge-card,
 .guide {
   background: rgba(255, 255, 255, 0.88);
@@ -65,6 +76,89 @@ h1 {
   gap: 12px;
   padding: 16px;
   margin-bottom: 16px;
+}
+
+.achievement-strip {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(23, 50, 77, 0.08);
+  box-shadow: 0 12px 30px rgba(23, 50, 77, 0.08);
+}
+
+.achievement-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #c2410c;
+}
+
+.achievement-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.achievement-empty,
+.achievement-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-size: 0.92rem;
+}
+
+.achievement-empty {
+  background: #f8fafc;
+  color: #475569;
+}
+
+.achievement-badge {
+  background: #fff7ed;
+  color: #9a3412;
+  font-weight: 700;
+  border: 1px solid #fdba74;
+}
+
+.panel {
+  padding: 18px;
+  margin-bottom: 16px;
+}
+
+.section-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 14px;
+}
+
+.section-heading.compact {
+  margin-bottom: 10px;
+}
+
+.section-kicker {
+  margin-bottom: 6px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #ff7a18;
+}
+
+.section-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: #fff7ed;
+  color: #c2410c;
+  font-size: 0.9rem;
+  font-weight: 700;
 }
 
 .stat {
@@ -84,12 +178,60 @@ h1 {
   font-size: 2rem;
 }
 
+.activity-tabs,
 .controls {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+}
+
+.activity-button {
+  flex: 1 1 220px;
+  min-height: 92px;
+  padding: 16px 18px;
+  border-radius: 22px;
+  border: 2px solid #dbeafe;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  color: #17324d;
+  text-align: left;
+}
+
+.activity-button.active {
+  border-color: #17324d;
+  background: linear-gradient(180deg, #eff6ff 0%, #dbeafe 100%);
+  box-shadow: 0 16px 30px rgba(23, 50, 77, 0.1);
+}
+
+.activity-button:disabled {
+  opacity: 1;
+  cursor: not-allowed;
+  border-style: dashed;
+  border-color: #d6d3d1;
+  background: #fafaf9;
+  color: #57534e;
+}
+
+.activity-title {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.activity-description {
+  display: block;
+  font-size: 0.94rem;
+  line-height: 1.4;
+}
+
+.controls-description {
+  margin-bottom: 14px;
+  color: #334155;
+  line-height: 1.5;
+}
+
+.controls {
   padding: 14px;
-  margin-bottom: 16px;
 }
 
 button {
@@ -115,6 +257,28 @@ button {
 .challenge-card {
   padding: 24px;
   margin-bottom: 16px;
+}
+
+.operation-preview {
+  margin: 20px 0 10px;
+}
+
+.operation-card {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 18px;
+  border-radius: 22px;
+  background: #fffdf6;
+  border: 2px solid #fde68a;
+}
+
+.operation-symbol,
+.operation-question {
+  font-size: clamp(1.8rem, 5vw, 2.6rem);
+  font-weight: 700;
 }
 
 .prompt {
@@ -172,6 +336,16 @@ button {
   font-weight: 700;
 }
 
+.fraction.fraction-compact {
+  gap: 4px;
+  font-size: clamp(1.4rem, 4vw, 2.2rem);
+}
+
+.fraction.fraction-compact .line {
+  width: 48px;
+  height: 4px;
+}
+
 .pizza-wrap {
   display: grid;
   place-items: center;
@@ -195,6 +369,54 @@ button {
 .vs {
   font-size: 2rem;
   font-weight: 700;
+}
+
+.answer-options {
+  display: grid;
+  gap: 12px;
+  margin: 24px 0;
+}
+
+.answer-options.compare-layout {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: center;
+}
+
+.answer-options.operation-layout {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.answer-button {
+  min-height: 120px;
+  padding: 16px;
+  border-radius: 24px;
+  background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
+  border: 3px solid #cfe0f2;
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.answer-button:hover,
+.answer-button:focus-visible {
+  transform: translateY(-2px);
+  border-color: #5aa9ff;
+  box-shadow: 0 16px 30px rgba(90, 169, 255, 0.18);
+  outline: none;
+}
+
+.answer-button.correct {
+  border-color: #15a34a;
+  background: #effcf3;
+}
+
+.answer-button.wrong {
+  border-color: #dc2626;
+  background: #fff1f2;
+}
+
+.answer-button:disabled {
+  cursor: default;
+  opacity: 0.96;
+  transform: none;
 }
 
 .actions {
@@ -238,17 +460,32 @@ button {
   border: 2px solid #fde68a;
 }
 
+.guide-grid p {
+  margin-bottom: 0;
+  line-height: 1.5;
+}
+
 @media (max-width: 720px) {
   .scoreboard,
   .guide-grid {
     grid-template-columns: 1fr;
   }
 
-  .fractions {
+  .achievement-strip {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .section-heading {
+    flex-direction: column;
+  }
+
+  .answer-options.compare-layout,
+  .answer-options.operation-layout {
     grid-template-columns: 1fr;
   }
 
-  .vs {
-    text-align: center;
+  .operation-card {
+    gap: 10px;
   }
 }

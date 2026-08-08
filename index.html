@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Mathias Garcia | Fracciones</title>
     <meta name="theme-color" content="#f97316" />
-    <meta name="description" content="Practica visual para comparar fracciones con Mathias Garcia." />
+    <meta name="description" content="Laboratorio visual para practicar fracciones con Mathias Garcia." />
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="icons/icon-192.svg" />
@@ -17,7 +17,10 @@
         <p class="eyebrow">Matematicas visuales</p>
         <h1>Mathias Garcia | Fracciones</h1>
         <p class="subtitle">
-          Practica comparacion de fracciones de forma visual, rapida y clara.
+          Un mini laboratorio para practicar fracciones de forma visual, rapida y clara.
+        </p>
+        <p class="hero-note">
+          Cada actividad tiene sus propias tecnicas y niveles para reforzar el aprendizaje sin que se note demasiado.
         </p>
       </section>
 
@@ -31,26 +34,76 @@
           <strong id="streakCount">0</strong>
         </article>
         <article class="stat">
-          <span class="label">Nivel</span>
+          <span class="label">Actividad</span>
+          <strong id="activityLabel">Comparar</strong>
+        </article>
+        <article class="stat">
+          <span class="label">Tecnica</span>
           <strong id="modeLabel">Mixto</strong>
+        </article>
+        <article class="stat">
+          <span class="label">Nivel</span>
+          <strong id="levelLabel">Guiado</strong>
         </article>
       </section>
 
-      <section class="controls">
-        <button class="mode-button active" data-mode="mixed">Mixto</button>
-        <button class="mode-button" data-mode="same-denominator">Mismo denominador</button>
-        <button class="mode-button" data-mode="same-numerator">Mismo numerador</button>
-        <button class="mode-button" data-mode="cross">Multiplica en cruz</button>
+      <section class="achievement-strip" aria-live="polite">
+        <span class="achievement-title">Logros</span>
+        <div class="achievement-list" id="achievementList">
+          <span class="achievement-empty">Juega una ronda para desbloquear tu primera medalla.</span>
+        </div>
+      </section>
+
+      <section class="panel activity-panel">
+        <div class="section-heading">
+          <div>
+            <p class="section-kicker">Actividad</p>
+            <h2>Elige que quieres practicar</h2>
+          </div>
+          <span class="section-chip">Laboratorio base</span>
+        </div>
+
+        <div class="activity-tabs" aria-label="Actividades del laboratorio">
+          <button class="activity-button active" type="button" aria-pressed="true" data-activity="compare">
+            <span class="activity-title">Comparar</span>
+            <span class="activity-description">Elegir la fraccion mayor</span>
+          </button>
+          <button class="activity-button" type="button" aria-pressed="false" data-activity="multiply">
+            <span class="activity-title">Multiplicar</span>
+            <span class="activity-description">Resolver operaciones y simplificar</span>
+          </button>
+          <button class="activity-button" type="button" aria-pressed="false" data-activity="divide">
+            <span class="activity-title">Dividir</span>
+            <span class="activity-description">Invertir, multiplicar y simplificar</span>
+          </button>
+        </div>
+      </section>
+
+      <section class="panel controls-panel">
+        <div class="section-heading compact">
+          <div>
+            <p class="section-kicker" id="controlsKicker">Comparar fracciones</p>
+            <h2 id="controlsTitle">Escoge un tipo de reto</h2>
+          </div>
+          <span class="section-chip" id="techniqueChip">Tecnica: Mixto</span>
+        </div>
+        <p class="controls-description" id="controlsDescription">
+          Empieza con comparacion visual y cambia de actividad cuando quieras.
+        </p>
+
+        <div class="controls" id="modeControls">
+          <button class="mode-button active" data-mode="mixed">Mixto</button>
+          <button class="mode-button" data-mode="same-denominator">Mismo denominador</button>
+          <button class="mode-button" data-mode="same-numerator">Mismo numerador</button>
+          <button class="mode-button" data-mode="cross">Multiplica en cruz</button>
+        </div>
       </section>
 
       <section class="challenge-card">
         <p id="promptText" class="prompt">Toca la fraccion mayor</p>
 
-        <div class="fractions" id="fractionsContainer">
-          <button class="fraction-button" id="leftFraction" type="button"></button>
-          <div class="vs">o</div>
-          <button class="fraction-button" id="rightFraction" type="button"></button>
-        </div>
+        <div id="operationPreview" class="operation-preview" hidden></div>
+        <div class="answer-options compare-layout" id="answerOptions"></div>
 
         <div class="actions">
           <button id="hintButton" class="secondary" type="button">Ver pista</button>
@@ -61,19 +114,24 @@
       </section>
 
       <section class="guide">
-        <h2>Truco para memorizar</h2>
-        <div class="guide-grid">
+        <div class="section-heading compact">
+          <div>
+            <p class="section-kicker">Ideas para aprender</p>
+            <h2 id="guideTitle">Tu laboratorio de fracciones</h2>
+          </div>
+        </div>
+        <div class="guide-grid" id="guideGrid">
           <article>
-            <h3>Mismo denominador</h3>
-            <p>Gana el numerador mayor.</p>
+            <h3 id="guideCardTitle1">Comparar</h3>
+            <p id="guideCardText1">Descubre cual fraccion es mayor usando pistas visuales y trucos cortos.</p>
           </article>
           <article>
-            <h3>Mismo numerador</h3>
-            <p>Gana el denominador menor.</p>
+            <h3 id="guideCardTitle2">Multiplicar</h3>
+            <p id="guideCardText2">Muy pronto podras multiplicar fracciones y simplificar el resultado.</p>
           </article>
           <article>
-            <h3>Todo diferente</h3>
-            <p>Multiplica en cruz y compara.</p>
+            <h3 id="guideCardTitle3">Dividir</h3>
+            <p id="guideCardText3">Tambien llegaran retos para dividir fracciones paso a paso.</p>
           </article>
         </div>
       </section>

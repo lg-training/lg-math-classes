@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pizza-fracciones-v1';
+const CACHE_NAME = 'pizza-fracciones-v2';
 const ASSETS = [
   './',
   './index.html',

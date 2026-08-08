@@ -1,6 +1,6 @@
 # Mathias Garcia | Fracciones
 
-Mini app web para practicar comparacion de fracciones con un nino.
+Mini laboratorio web para practicar fracciones con un nino.
 
 ## Requisitos
 
@@ -36,10 +36,13 @@ La app queda con icono propio y puede abrirse como si fuera una aplicacion.
 
 ## Incluye
 
-- Modo mixto
-- Modo mismo denominador
-- Modo mismo numerador
-- Modo multiplicacion en cruz
+- Actividad de comparacion
+- Actividad de multiplicacion
+- Actividad de division
+- Tecnicas propias por actividad
+- Niveles guiado, practica y desafio
+- Simplificacion guiada en operaciones
 - Pistas y explicacion inmediata
-- Marcador de aciertos y racha
+- Marcador global de aciertos y racha
+- Primeros logros y medallas de progreso
 # lg-math-classes
