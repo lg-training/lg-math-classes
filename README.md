@@ -41,6 +41,7 @@ La app queda con icono propio y puede abrirse como si fuera una aplicacion.
 - Actividad de division
 - Actividad de suma
 - Actividad de resta
+- Actividad unificada de fracciones propias e impropias
 - Tecnicas propias por actividad
 - Niveles guiado, practica y desafio
 - Simplificacion guiada en operaciones

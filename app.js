@@ -26,6 +26,10 @@ const modeLabelMap = {
   'subtract-same-denominator': 'Mismo denominador',
   'subtract-different-denominator': 'Distinto denominador',
   'subtract-cross-equalize': 'Iguala con multiplicacion cruzada',
+  'proper-improper-mixed': 'Preguntas mezcladas',
+  'proper-improper-identify': 'Distingue el tipo',
+  'improper-to-mixed': 'Impropia a mixta',
+  'mixed-to-improper': 'Mixta a impropia',
 };
 
 const levelLabelMap = {
@@ -182,6 +186,60 @@ const activityContent = {
       ],
     },
   },
+  'proper-improper': {
+    kicker: 'Propias e impropias',
+    title: 'Reconoce y convierte',
+    description: 'Mezcla preguntas para distinguir fracciones propias, impropias y numeros mixtos.',
+    defaultMode: 'proper-improper-mixed',
+    modes: [
+      { key: 'proper-improper-mixed', label: 'Mixto' },
+      { key: 'proper-improper-identify', label: 'Identificar' },
+      { key: 'improper-to-mixed', label: 'A numero mixto' },
+      { key: 'mixed-to-improper', label: 'A impropia' },
+    ],
+    guide: {
+      title: 'Tecnicas para propias e impropias',
+      sections: [
+        {
+          cards: [
+            {
+              title: 'Fraccion propia',
+              text: 'El numerador es menor que el denominador.',
+            },
+            {
+              title: 'Fraccion impropia',
+              text: 'El numerador es mayor o igual que el denominador.',
+            },
+            {
+              title: 'Numero mixto',
+              text: 'Tiene figuras completas y una fraccion con las partes que sobran.',
+            },
+            {
+              title: 'Lee una mixta',
+              text: 'Primero lee el entero y despues la fraccion: 2 1/3 se lee dos enteros y un tercio.',
+            },
+          ],
+        },
+        {
+          title: 'Tecnicas para dibujar',
+          cards: [
+            {
+              title: 'Dibuja una propia',
+              text: 'Dibuja una figura, dividela en partes iguales y pinta menos partes de las que hay abajo.',
+            },
+            {
+              title: 'Dibuja una impropia',
+              text: 'Dibuja figuras iguales completas hasta pintar todas las partes que dice el numerador.',
+            },
+            {
+              title: 'Dibuja una mixta',
+              text: 'Dibuja las figuras completas y despues otra figura con las partes que sobran.',
+            },
+          ],
+        },
+      ],
+    },
+  },
 };
 
 const promptText = document.getElementById('promptText');
@@ -203,12 +261,7 @@ const activityLabel = document.getElementById('activityLabel');
 const levelLabel = document.getElementById('levelLabel');
 const techniqueChip = document.getElementById('techniqueChip');
 const guideTitle = document.getElementById('guideTitle');
-const guideCardTitle1 = document.getElementById('guideCardTitle1');
-const guideCardTitle2 = document.getElementById('guideCardTitle2');
-const guideCardTitle3 = document.getElementById('guideCardTitle3');
-const guideCardText1 = document.getElementById('guideCardText1');
-const guideCardText2 = document.getElementById('guideCardText2');
-const guideCardText3 = document.getElementById('guideCardText3');
+const guideGrid = document.getElementById('guideGrid');
 
 function updateActionLabels() {
   if (state.answered) {
@@ -223,6 +276,11 @@ function updateActionLabels() {
 
   if (state.activity === 'compare') {
     promptText.textContent = 'Toca la fraccion mayor';
+    return;
+  }
+
+  if (state.activity === 'proper-improper') {
+    promptText.textContent = state.currentChallenge ? state.currentChallenge.prompt : 'Elige la respuesta correcta';
     return;
   }
 
@@ -257,7 +315,7 @@ function buildFractionMarkup(numerator, denominator) {
   return `
     <span class="fraction" aria-label="${numerator} partido ${denominator}">
       <span class="pizza-wrap" aria-hidden="true">
-        ${buildPizzaMarkup(numerator, denominator)}
+        ${buildFractionVisualMarkup(numerator, denominator)}
       </span>
       <span>${numerator}</span>
       <span class="line"></span>
@@ -272,6 +330,24 @@ function buildCompactFractionMarkup(numerator, denominator) {
       <span>${numerator}</span>
       <span class="line"></span>
       <span>${denominator}</span>
+    </span>
+  `;
+}
+
+function buildMixedNumberMarkup(whole, numerator, denominator) {
+  return `
+    <span class="mixed-number" aria-label="${whole} enteros y ${numerator} partido ${denominator}">
+      <span class="mixed-whole">${whole}</span>
+      ${buildCompactFractionMarkup(numerator, denominator)}
+    </span>
+  `;
+}
+
+function buildTextOptionMarkup(text, note = '') {
+  return `
+    <span class="text-option">
+      <strong>${text}</strong>
+      ${note ? `<small>${note}</small>` : ''}
     </span>
   `;
 }
@@ -320,6 +396,26 @@ function buildPizzaMarkup(numerator, denominator) {
       <circle cx="50" cy="50" r="44" fill="none" stroke="#17324d" stroke-width="2.5"></circle>
     </svg>
   `;
+}
+
+function buildFractionVisualMarkup(numerator, denominator) {
+  if (numerator <= denominator) {
+    return buildPizzaMarkup(numerator, denominator);
+  }
+
+  const wholeCount = Math.floor(numerator / denominator);
+  const remainder = numerator % denominator;
+  const pizzas = [];
+
+  for (let index = 0; index < wholeCount; index += 1) {
+    pizzas.push(buildPizzaMarkup(denominator, denominator));
+  }
+
+  if (remainder > 0) {
+    pizzas.push(buildPizzaMarkup(remainder, denominator));
+  }
+
+  return `<span class="pizza-stack">${pizzas.join('')}</span>`;
 }
 
 function getDifficultyConfig() {
@@ -385,6 +481,15 @@ function buildCompareOption(side, fraction) {
   };
 }
 
+function buildChoiceOption(key, label, plainLabel) {
+  return {
+    key,
+    value: key,
+    label,
+    plainLabel,
+  };
+}
+
 function createSameDenominatorChallenge() {
   const { maxDenominator } = getDifficultyConfig();
   const denominator = randomInt(3, maxDenominator);
@@ -412,7 +517,7 @@ function createSameDenominatorChallenge() {
 
 function createSameNumeratorChallenge() {
   const { maxDenominator, maxNumerator } = getDifficultyConfig();
-  const numerator = randomInt(1, Math.min(6, maxNumerator));
+  const numerator = randomInt(1, Math.min(6, maxNumerator, maxDenominator - 2));
   let leftDenominator = randomInt(numerator + 1, maxDenominator);
   let rightDenominator = randomInt(numerator + 1, maxDenominator);
 
@@ -499,11 +604,8 @@ function generateDistractorFractions(correctFraction) {
     }
   });
 
-  while (distractors.length < 2) {
-    const candidate = {
-      numerator: Math.max(1, correctFraction.numerator + randomInt(1, 3)),
-      denominator: Math.max(2, correctFraction.denominator + randomInt(0, 3)),
-    };
+  for (let offset = 1; distractors.length < 2 && offset <= 4; offset += 1) {
+    const candidate = { numerator: correctFraction.numerator + offset, denominator: correctFraction.denominator + offset };
     const text = fractionToText(candidate);
     if (text !== fractionToText(correctFraction) && !distractors.some((item) => fractionToText(item) === text)) {
       distractors.push(candidate);
@@ -613,6 +715,86 @@ function buildArithmeticOptions(correctFraction, rawFraction) {
   }
 
   return shuffle(options.slice(0, 3));
+}
+
+function buildImproperConversionOptions(correctMixed, sourceFraction) {
+  const correctKey = `mixed-${correctMixed.whole}-${correctMixed.numerator}-${correctMixed.denominator}`;
+  const options = [
+    buildChoiceOption(
+      correctKey,
+      buildMixedNumberMarkup(correctMixed.whole, correctMixed.numerator, correctMixed.denominator),
+      `${correctMixed.whole} ${correctMixed.numerator}/${correctMixed.denominator}`
+    ),
+  ];
+
+  const distractors = [
+    { whole: correctMixed.whole + 1, numerator: correctMixed.numerator, denominator: correctMixed.denominator },
+    { whole: correctMixed.whole, numerator: Math.min(correctMixed.denominator - 1, correctMixed.numerator + 1), denominator: correctMixed.denominator },
+    { whole: Math.max(1, correctMixed.whole - 1), numerator: sourceFraction.numerator - correctMixed.denominator, denominator: correctMixed.denominator },
+  ];
+
+  for (let wholeOffset = -2; wholeOffset <= 2; wholeOffset += 1) {
+    for (let numerator = 1; numerator < correctMixed.denominator; numerator += 1) {
+      distractors.push({
+        whole: Math.max(1, correctMixed.whole + wholeOffset),
+        numerator,
+        denominator: correctMixed.denominator,
+      });
+    }
+  }
+
+  distractors.forEach((mixed) => {
+    if (mixed.numerator <= 0 || mixed.numerator >= mixed.denominator) {
+      return;
+    }
+
+    const key = `mixed-${mixed.whole}-${mixed.numerator}-${mixed.denominator}`;
+    if (!options.some((option) => option.key === key) && options.length < 3) {
+      options.push(buildChoiceOption(key, buildMixedNumberMarkup(mixed.whole, mixed.numerator, mixed.denominator), `${mixed.whole} ${mixed.numerator}/${mixed.denominator}`));
+    }
+  });
+
+  return {
+    options: shuffle(options.slice(0, 3)),
+    correctKey,
+  };
+}
+
+function buildMixedConversionOptions(sourceMixed, correctFraction) {
+  const correctText = fractionToText(correctFraction);
+  const options = [
+    buildChoiceOption(
+      `fraction-${correctText}`,
+      buildCompactFractionMarkup(correctFraction.numerator, correctFraction.denominator),
+      correctText
+    ),
+  ];
+
+  const distractors = [
+    { numerator: sourceMixed.whole + sourceMixed.numerator, denominator: sourceMixed.denominator },
+    { numerator: sourceMixed.whole * sourceMixed.denominator - sourceMixed.numerator, denominator: sourceMixed.denominator },
+    { numerator: correctFraction.numerator + 1, denominator: correctFraction.denominator },
+  ];
+
+  for (let offset = -3; offset <= 3; offset += 1) {
+    distractors.push({
+      numerator: Math.max(1, correctFraction.numerator + offset),
+      denominator: correctFraction.denominator,
+    });
+  }
+
+  distractors.forEach((fraction) => {
+    const text = fractionToText(fraction);
+    const key = `fraction-${text}`;
+    if (text !== correctText && !options.some((option) => option.key === key) && options.length < 3) {
+      options.push(buildChoiceOption(key, buildCompactFractionMarkup(fraction.numerator, fraction.denominator), text));
+    }
+  });
+
+  return {
+    options: shuffle(options.slice(0, 3)),
+    correctKey: `fraction-${correctText}`,
+  };
 }
 
 function buildEqualizationExplanation(left, right, commonDenominator, leftMultiplier, rightMultiplier, newLeftNumerator, newRightNumerator, activity) {
@@ -780,6 +962,105 @@ function createOperationChallenge(activity) {
   };
 }
 
+function createProperImproperIdentifyChallenge() {
+  const { maxDenominator } = getDifficultyConfig();
+  const denominator = randomInt(3, maxDenominator);
+  const isProper = randomInt(0, 1) === 0;
+  const numerator = isProper
+    ? randomInt(1, denominator - 1)
+    : randomInt(denominator, denominator + Math.max(2, Math.floor(maxDenominator / 2)));
+  const fraction = { numerator, denominator };
+  const correctKey = isProper ? 'proper' : 'improper';
+
+  return {
+    activity: 'proper-improper',
+    prompt: 'Que tipo de fraccion es?',
+    focus: fraction,
+    options: shuffle([
+      buildChoiceOption('proper', buildTextOptionMarkup('Propia', 'Numerador menor'), 'Propia'),
+      buildChoiceOption('improper', buildTextOptionMarkup('Impropia', 'Numerador mayor o igual'), 'Impropia'),
+    ]),
+    correctOptionKey: correctKey,
+    hint: 'Compara el numerador con el denominador.',
+    explanation: isProper
+      ? `${numerator} es menor que ${denominator}, por eso ${fractionToText(fraction)} es una fraccion propia.`
+      : `${numerator} es mayor o igual que ${denominator}, por eso ${fractionToText(fraction)} es una fraccion impropia.`,
+    difficulty: state.progressionStep,
+    technique: state.mode,
+  };
+}
+
+function createImproperToMixedChallenge() {
+  const { maxDenominator } = getDifficultyConfig();
+  const denominator = randomInt(2, maxDenominator);
+  const whole = randomInt(1, state.progressionStep === 'guided' ? 2 : 4);
+  const remainder = randomInt(1, denominator - 1);
+  const fraction = {
+    numerator: whole * denominator + remainder,
+    denominator,
+  };
+  const mixed = { whole, numerator: remainder, denominator };
+  const optionData = buildImproperConversionOptions(mixed, fraction);
+
+  return {
+    activity: 'proper-improper',
+    prompt: 'Convierte la fraccion impropia a numero mixto',
+    focus: fraction,
+    options: optionData.options,
+    correctOptionKey: optionData.correctKey,
+    hint: 'Divide el numerador entre el denominador: los enteros salen del cociente y el resto queda arriba.',
+    explanation: `${fraction.numerator} ÷ ${denominator} = ${whole} y sobra ${remainder}. Entonces ${fractionToText(fraction)} = ${whole} ${remainder}/${denominator}.`,
+    difficulty: state.progressionStep,
+    technique: state.mode,
+  };
+}
+
+function createMixedToImproperChallenge() {
+  const { maxDenominator } = getDifficultyConfig();
+  const denominator = randomInt(2, maxDenominator);
+  const whole = randomInt(1, state.progressionStep === 'guided' ? 2 : 4);
+  const numerator = randomInt(1, denominator - 1);
+  const mixed = { whole, numerator, denominator };
+  const fraction = {
+    numerator: whole * denominator + numerator,
+    denominator,
+  };
+  const optionData = buildMixedConversionOptions(mixed, fraction);
+
+  return {
+    activity: 'proper-improper',
+    prompt: 'Convierte el numero mixto a fraccion impropia',
+    focusMixed: mixed,
+    options: optionData.options,
+    correctOptionKey: optionData.correctKey,
+    hint: 'Multiplica enteros por denominador y suma el numerador.',
+    explanation: `${whole} × ${denominator} = ${whole * denominator}; despues sumamos ${numerator} y queda ${fraction.numerator}. Entonces ${whole} ${numerator}/${denominator} = ${fractionToText(fraction)}.`,
+    difficulty: state.progressionStep,
+    technique: state.mode,
+  };
+}
+
+function createProperImproperChallenge() {
+  if (state.mode === 'proper-improper-identify') {
+    return createProperImproperIdentifyChallenge();
+  }
+
+  if (state.mode === 'improper-to-mixed') {
+    return createImproperToMixedChallenge();
+  }
+
+  if (state.mode === 'mixed-to-improper') {
+    return createMixedToImproperChallenge();
+  }
+
+  const creators = [
+    createProperImproperIdentifyChallenge,
+    createImproperToMixedChallenge,
+    createMixedToImproperChallenge,
+  ];
+  return creators[randomInt(0, creators.length - 1)]();
+}
+
 function createCompareChallenge() {
   if (state.mode === 'same-denominator') {
     return createSameDenominatorChallenge();
@@ -806,6 +1087,10 @@ function createChallenge() {
     return createAddSubtractChallenge(state.activity);
   }
 
+  if (state.activity === 'proper-improper') {
+    return createProperImproperChallenge();
+  }
+
   return createOperationChallenge(state.activity);
 }
 
@@ -815,15 +1100,14 @@ function updateActivityUi() {
   controlsTitle.textContent = content.title;
   controlsDescription.textContent = content.description;
   activityLabel.textContent =
-    state.activity === 'compare'
-      ? 'Comparar'
-      : state.activity === 'multiply'
-        ? 'Multiplicar'
-        : state.activity === 'divide'
-          ? 'Dividir'
-          : state.activity === 'add'
-            ? 'Sumar'
-            : 'Restar';
+    {
+      compare: 'Comparar',
+      multiply: 'Multiplicar',
+      divide: 'Dividir',
+      add: 'Sumar',
+      subtract: 'Restar',
+      'proper-improper': 'Propias e impropias',
+    }[state.activity] || 'Fracciones';
   modeLabel.textContent = getModeLabel();
   levelLabel.textContent = levelLabelMap[state.progressionStep];
   techniqueChip.textContent = `Tecnica: ${getTechniqueLabel()}`;
@@ -858,12 +1142,25 @@ function renderModeButtons(modes) {
 
 function renderGuide(guide) {
   guideTitle.textContent = guide.title;
-  guideCardTitle1.textContent = guide.cards[0].title;
-  guideCardText1.textContent = guide.cards[0].text;
-  guideCardTitle2.textContent = guide.cards[1].title;
-  guideCardText2.textContent = guide.cards[1].text;
-  guideCardTitle3.textContent = guide.cards[2].title;
-  guideCardText3.textContent = guide.cards[2].text;
+  const sections = guide.sections || [{ cards: guide.cards }];
+
+  guideGrid.innerHTML = sections
+    .map((section) => {
+      const sectionTitle = section.title ? `<h3 class="guide-section-title">${section.title}</h3>` : '';
+      const cards = section.cards
+        .map(
+          (card) => `
+            <article>
+              <h3>${card.title}</h3>
+              <p>${card.text}</p>
+            </article>
+          `
+        )
+        .join('');
+
+      return `${sectionTitle}${cards}`;
+    })
+    .join('');
 }
 
 function renderAchievements() {
@@ -902,6 +1199,10 @@ function updateAchievementsOnSuccess(challenge) {
     unlockAchievement('Igualador de denominadores');
   }
 
+  if (challenge.activity === 'proper-improper') {
+    unlockAchievement('Maestro de mixtas');
+  }
+
   const activitySet = new Set(state.achievements);
   if (state.correct >= 6 || activitySet.has('Super simplificador')) {
     unlockAchievement('Explorador de fracciones');
@@ -912,6 +1213,18 @@ function buildOperationPreview(challenge) {
   if (challenge.activity === 'compare') {
     operationPreview.hidden = true;
     operationPreview.innerHTML = '';
+    return;
+  }
+
+  if (challenge.activity === 'proper-improper') {
+    operationPreview.hidden = false;
+    operationPreview.innerHTML = `
+      <div class="operation-card fraction-focus-card">
+        ${challenge.focus
+          ? buildFractionMarkup(challenge.focus.numerator, challenge.focus.denominator)
+          : buildMixedNumberMarkup(challenge.focusMixed.whole, challenge.focusMixed.numerator, challenge.focusMixed.denominator)}
+      </div>
+    `;
     return;
   }
 
@@ -931,7 +1244,8 @@ function renderChallenge() {
   setProgressionStep();
   state.currentChallenge = createChallenge();
   state.answered = false;
-  answerOptions.className = `answer-options ${state.activity === 'compare' ? 'compare-layout' : 'operation-layout'}`;
+  const answerLayout = state.currentChallenge.options.length === 2 ? 'compare-layout' : 'operation-layout';
+  answerOptions.className = `answer-options ${answerLayout}`;
   answerOptions.innerHTML = state.currentChallenge.options
     .map(
       (option) => `
