@@ -20,6 +20,12 @@ const modeLabelMap = {
   'divide-flip': 'Da la vuelta a la segunda',
   'divide-simplify': 'Divide y simplifica',
   'divide-challenge': 'Reto de simplificacion',
+  'add-same-denominator': 'Mismo denominador',
+  'add-different-denominator': 'Distinto denominador',
+  'add-cross-equalize': 'Iguala con multiplicacion cruzada',
+  'subtract-same-denominator': 'Mismo denominador',
+  'subtract-different-denominator': 'Distinto denominador',
+  'subtract-cross-equalize': 'Iguala con multiplicacion cruzada',
 };
 
 const levelLabelMap = {
@@ -120,6 +126,62 @@ const activityContent = {
       ],
     },
   },
+  add: {
+    kicker: 'Sumar fracciones',
+    title: 'Suma con tecnica guiada',
+    description: 'Aprende a sumar con mismo denominador o igualando denominadores paso a paso.',
+    defaultMode: 'add-same-denominator',
+    modes: [
+      { key: 'add-same-denominator', label: 'Mismo denominador' },
+      { key: 'add-different-denominator', label: 'Distinto denominador' },
+      { key: 'add-cross-equalize', label: 'Iguala denominadores' },
+    ],
+    guide: {
+      title: 'Tecnicas para sumar',
+      cards: [
+        {
+          title: 'Mismo denominador',
+          text: 'Si abajo es igual, suma solo los numeradores.',
+        },
+        {
+          title: 'Distinto denominador',
+          text: 'Busca un denominador comun antes de sumar.',
+        },
+        {
+          title: 'Igualacion guiada',
+          text: 'Multiplica cada fraccion por lo que le falta abajo para igualar.',
+        },
+      ],
+    },
+  },
+  subtract: {
+    kicker: 'Restar fracciones',
+    title: 'Resta con tecnica guiada',
+    description: 'Aprende a restar con mismo denominador o igualando denominadores paso a paso.',
+    defaultMode: 'subtract-same-denominator',
+    modes: [
+      { key: 'subtract-same-denominator', label: 'Mismo denominador' },
+      { key: 'subtract-different-denominator', label: 'Distinto denominador' },
+      { key: 'subtract-cross-equalize', label: 'Iguala denominadores' },
+    ],
+    guide: {
+      title: 'Tecnicas para restar',
+      cards: [
+        {
+          title: 'Mismo denominador',
+          text: 'Si abajo es igual, resta solo los numeradores.',
+        },
+        {
+          title: 'Distinto denominador',
+          text: 'Busca un denominador comun antes de restar.',
+        },
+        {
+          title: 'Igualacion guiada',
+          text: 'Usa multiplicacion cruzada para llevar las dos fracciones al mismo denominador.',
+        },
+      ],
+    },
+  },
 };
 
 const promptText = document.getElementById('promptText');
@@ -165,6 +227,10 @@ function updateActionLabels() {
   }
 
   promptText.textContent = 'Elige la respuesta correcta';
+}
+
+function lcm(a, b) {
+  return Math.abs(a * b) / gcd(a, b);
 }
 
 function randomInt(min, max) {
@@ -482,6 +548,176 @@ function buildOperationOptions(correctFraction) {
   return shuffle(options);
 }
 
+function buildArithmeticOptions(correctFraction, rawFraction) {
+  const correctText = fractionToText(correctFraction);
+  const rawText = fractionToText(rawFraction);
+  const options = [
+    {
+      key: `option-${rawText}`,
+      value: rawText,
+      label: buildCompactFractionMarkup(rawFraction.numerator, rawFraction.denominator),
+      plainLabel: rawText,
+    },
+  ];
+
+  if (correctText !== rawText) {
+    options.push({
+      key: `option-${correctText}`,
+      value: correctText,
+      label: buildCompactFractionMarkup(correctFraction.numerator, correctFraction.denominator),
+      plainLabel: correctText,
+    });
+  }
+
+  const distractors = [
+    {
+      numerator: Math.max(1, rawFraction.numerator + 1),
+      denominator: rawFraction.denominator,
+    },
+    {
+      numerator: Math.max(1, rawFraction.numerator - 1),
+      denominator: rawFraction.denominator,
+    },
+    {
+      numerator: rawFraction.numerator,
+      denominator: rawFraction.denominator + 1,
+    },
+  ];
+
+  distractors.forEach((fraction) => {
+    const text = fractionToText(fraction);
+    if (!options.some((option) => option.value === text) && options.length < 3) {
+      options.push({
+        key: `option-${text}`,
+        value: text,
+        label: buildCompactFractionMarkup(fraction.numerator, fraction.denominator),
+        plainLabel: text,
+      });
+    }
+  });
+
+  while (options.length < 3) {
+    const fraction = {
+      numerator: Math.max(1, rawFraction.numerator + randomInt(1, 3)),
+      denominator: Math.max(2, rawFraction.denominator + randomInt(0, 3)),
+    };
+    const text = fractionToText(fraction);
+    if (!options.some((option) => option.value === text)) {
+      options.push({
+        key: `option-${text}`,
+        value: text,
+        label: buildCompactFractionMarkup(fraction.numerator, fraction.denominator),
+        plainLabel: text,
+      });
+    }
+  }
+
+  return shuffle(options.slice(0, 3));
+}
+
+function buildEqualizationExplanation(left, right, commonDenominator, leftMultiplier, rightMultiplier, newLeftNumerator, newRightNumerator, activity) {
+  const actionWord = activity === 'add' ? 'sumamos' : 'restamos';
+  return `Buscamos un denominador comun: ${commonDenominator}. Multiplicamos ${fractionToText(left)} por ${leftMultiplier}/${leftMultiplier} y ${fractionToText(right)} por ${rightMultiplier}/${rightMultiplier}. Quedan ${newLeftNumerator}/${commonDenominator} y ${newRightNumerator}/${commonDenominator}; ahora ${actionWord} los numeradores.`;
+}
+
+function createAddSubtractChallenge(activity) {
+  const { maxDenominator, maxNumerator } = getDifficultyConfig();
+  const sameMode = state.mode === `${activity}-same-denominator`;
+  const crossMode = state.mode === `${activity}-cross-equalize`;
+
+  let left = null;
+  let right = null;
+  let rawResult = null;
+  let explanation = '';
+  let hint = '';
+
+  while (!left || !right || !rawResult) {
+    if (sameMode) {
+      const denominator = randomInt(2, maxDenominator);
+      const leftNumerator = randomInt(1, maxNumerator);
+      const rightNumerator = randomInt(1, maxNumerator);
+      const resultNumerator = activity === 'add' ? leftNumerator + rightNumerator : leftNumerator - rightNumerator;
+
+      if (resultNumerator <= 0) {
+        continue;
+      }
+
+      left = { numerator: leftNumerator, denominator };
+      right = { numerator: rightNumerator, denominator };
+      rawResult = { numerator: resultNumerator, denominator };
+      hint = activity === 'add'
+        ? 'Mismo denominador: suma solo los numeradores.'
+        : 'Mismo denominador: resta solo los numeradores.';
+      explanation = `Como las dos fracciones tienen ${denominator} abajo, ${activity === 'add' ? 'sumamos' : 'restamos'} solo los numeradores: ${leftNumerator} ${activity === 'add' ? '+' : '−'} ${rightNumerator} = ${resultNumerator}.`;
+      break;
+    }
+
+    left = {
+      numerator: randomInt(1, maxNumerator),
+      denominator: randomInt(2, maxDenominator),
+    };
+    right = {
+      numerator: randomInt(1, maxNumerator),
+      denominator: randomInt(2, maxDenominator),
+    };
+
+    if (left.denominator === right.denominator) {
+      continue;
+    }
+
+    const commonDenominator = crossMode ? left.denominator * right.denominator : lcm(left.denominator, right.denominator);
+    const leftMultiplier = commonDenominator / left.denominator;
+    const rightMultiplier = commonDenominator / right.denominator;
+    const newLeftNumerator = left.numerator * leftMultiplier;
+    const newRightNumerator = right.numerator * rightMultiplier;
+    const resultNumerator = activity === 'add' ? newLeftNumerator + newRightNumerator : newLeftNumerator - newRightNumerator;
+
+    if (resultNumerator <= 0) {
+      left = null;
+      right = null;
+      continue;
+    }
+
+    rawResult = {
+      numerator: resultNumerator,
+      denominator: commonDenominator,
+    };
+
+    hint = crossMode
+      ? 'Multiplica cada fraccion por lo que le falta abajo para igualar los denominadores.'
+      : 'Busca un denominador comun antes de operar.';
+
+    explanation = buildEqualizationExplanation(
+      left,
+      right,
+      commonDenominator,
+      leftMultiplier,
+      rightMultiplier,
+      newLeftNumerator,
+      newRightNumerator,
+      activity
+    );
+  }
+
+  const simplified = simplifyFraction(rawResult.numerator, rawResult.denominator);
+  const options = buildArithmeticOptions(rawResult, simplified);
+  const correctOption = options.find((option) => option.value === fractionToText(rawResult)) || options[0];
+
+  return {
+    activity,
+    prompt: 'Elige la respuesta correcta',
+    left,
+    right,
+    operator: activity === 'add' ? '+' : '−',
+    options,
+    correctOptionKey: correctOption.key,
+    hint,
+    explanation,
+    difficulty: state.progressionStep,
+    technique: state.mode,
+  };
+}
+
 function createOperationChallenge(activity) {
   const { maxDenominator, maxNumerator } = getDifficultyConfig();
 
@@ -566,6 +802,10 @@ function createChallenge() {
     return createCompareChallenge();
   }
 
+  if (state.activity === 'add' || state.activity === 'subtract') {
+    return createAddSubtractChallenge(state.activity);
+  }
+
   return createOperationChallenge(state.activity);
 }
 
@@ -574,7 +814,16 @@ function updateActivityUi() {
   controlsKicker.textContent = content.kicker;
   controlsTitle.textContent = content.title;
   controlsDescription.textContent = content.description;
-  activityLabel.textContent = state.activity === 'compare' ? 'Comparar' : state.activity === 'multiply' ? 'Multiplicar' : 'Dividir';
+  activityLabel.textContent =
+    state.activity === 'compare'
+      ? 'Comparar'
+      : state.activity === 'multiply'
+        ? 'Multiplicar'
+        : state.activity === 'divide'
+          ? 'Dividir'
+          : state.activity === 'add'
+            ? 'Sumar'
+            : 'Restar';
   modeLabel.textContent = getModeLabel();
   levelLabel.textContent = levelLabelMap[state.progressionStep];
   techniqueChip.textContent = `Tecnica: ${getTechniqueLabel()}`;
@@ -647,6 +896,10 @@ function updateAchievementsOnSuccess(challenge) {
 
   if ((challenge.activity === 'multiply' || challenge.activity === 'divide') && challenge.explanation.includes('simplific')) {
     unlockAchievement('Super simplificador');
+  }
+
+  if ((challenge.activity === 'add' || challenge.activity === 'subtract') && challenge.explanation.includes('denominador comun')) {
+    unlockAchievement('Igualador de denominadores');
   }
 
   const activitySet = new Set(state.achievements);

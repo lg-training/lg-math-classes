@@ -43,8 +43,11 @@ No hay build ni test suite configurados.
 - Actividad de comparacion.
 - Actividad de multiplicacion.
 - Actividad de division.
+- Actividad de suma.
+- Actividad de resta.
 - Modos de comparacion: mixto, mismo denominador, mismo numerador y multiplicacion en cruz.
 - Tecnicas especificas en multiplicacion y division, con niveles guiado, practica y desafio.
+- Tecnicas guiadas de suma y resta con mismo denominador, distinto denominador e igualacion de denominadores.
 - Pistas y explicacion inmediata.
 - Marcador de aciertos y racha.
 - Logros y progresion guiada.
