@@ -503,6 +503,12 @@ button {
   border: 2px solid #fde68a;
 }
 
+.guide-section-title {
+  grid-column: 1 / -1;
+  margin: 12px 0 0;
+  color: #c2410c;
+}
+
 .guide-grid p {
   margin-bottom: 0;
   line-height: 1.5;

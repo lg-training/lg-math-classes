@@ -199,18 +199,43 @@ const activityContent = {
     ],
     guide: {
       title: 'Tecnicas para propias e impropias',
-      cards: [
+      sections: [
         {
-          title: 'Fraccion propia',
-          text: 'Es menor que 1 entero: el numerador es menor que el denominador.',
+          cards: [
+            {
+              title: 'Fraccion propia',
+              text: 'El numerador es menor que el denominador.',
+            },
+            {
+              title: 'Fraccion impropia',
+              text: 'El numerador es mayor o igual que el denominador.',
+            },
+            {
+              title: 'Numero mixto',
+              text: 'Tiene figuras completas y una fraccion con las partes que sobran.',
+            },
+            {
+              title: 'Lee una mixta',
+              text: 'Primero lee el entero y despues la fraccion: 2 1/3 se lee dos enteros y un tercio.',
+            },
+          ],
         },
         {
-          title: 'Fraccion impropia',
-          text: 'Llega a 1 entero o lo supera: el numerador es mayor o igual que el denominador.',
-        },
-        {
-          title: 'Numero mixto',
-          text: 'Separa los enteros completos y deja el resto como fraccion.',
+          title: 'Tecnicas para dibujar',
+          cards: [
+            {
+              title: 'Dibuja una propia',
+              text: 'Dibuja una figura, dividela en partes iguales y pinta menos partes de las que hay abajo.',
+            },
+            {
+              title: 'Dibuja una impropia',
+              text: 'Dibuja figuras iguales completas hasta pintar todas las partes que dice el numerador.',
+            },
+            {
+              title: 'Dibuja una mixta',
+              text: 'Dibuja las figuras completas y despues otra figura con las partes que sobran.',
+            },
+          ],
         },
       ],
     },
@@ -236,12 +261,7 @@ const activityLabel = document.getElementById('activityLabel');
 const levelLabel = document.getElementById('levelLabel');
 const techniqueChip = document.getElementById('techniqueChip');
 const guideTitle = document.getElementById('guideTitle');
-const guideCardTitle1 = document.getElementById('guideCardTitle1');
-const guideCardTitle2 = document.getElementById('guideCardTitle2');
-const guideCardTitle3 = document.getElementById('guideCardTitle3');
-const guideCardText1 = document.getElementById('guideCardText1');
-const guideCardText2 = document.getElementById('guideCardText2');
-const guideCardText3 = document.getElementById('guideCardText3');
+const guideGrid = document.getElementById('guideGrid');
 
 function updateActionLabels() {
   if (state.answered) {
@@ -497,7 +517,7 @@ function createSameDenominatorChallenge() {
 
 function createSameNumeratorChallenge() {
   const { maxDenominator, maxNumerator } = getDifficultyConfig();
-  const numerator = randomInt(1, Math.min(6, maxNumerator));
+  const numerator = randomInt(1, Math.min(6, maxNumerator, maxDenominator - 2));
   let leftDenominator = randomInt(numerator + 1, maxDenominator);
   let rightDenominator = randomInt(numerator + 1, maxDenominator);
 
@@ -584,11 +604,8 @@ function generateDistractorFractions(correctFraction) {
     }
   });
 
-  while (distractors.length < 2) {
-    const candidate = {
-      numerator: Math.max(1, correctFraction.numerator + randomInt(1, 3)),
-      denominator: Math.max(2, correctFraction.denominator + randomInt(0, 3)),
-    };
+  for (let offset = 1; distractors.length < 2 && offset <= 4; offset += 1) {
+    const candidate = { numerator: correctFraction.numerator + offset, denominator: correctFraction.denominator + offset };
     const text = fractionToText(candidate);
     if (text !== fractionToText(correctFraction) && !distractors.some((item) => fractionToText(item) === text)) {
       distractors.push(candidate);
@@ -716,6 +733,16 @@ function buildImproperConversionOptions(correctMixed, sourceFraction) {
     { whole: Math.max(1, correctMixed.whole - 1), numerator: sourceFraction.numerator - correctMixed.denominator, denominator: correctMixed.denominator },
   ];
 
+  for (let wholeOffset = -2; wholeOffset <= 2; wholeOffset += 1) {
+    for (let numerator = 1; numerator < correctMixed.denominator; numerator += 1) {
+      distractors.push({
+        whole: Math.max(1, correctMixed.whole + wholeOffset),
+        numerator,
+        denominator: correctMixed.denominator,
+      });
+    }
+  }
+
   distractors.forEach((mixed) => {
     if (mixed.numerator <= 0 || mixed.numerator >= mixed.denominator) {
       return;
@@ -727,17 +754,8 @@ function buildImproperConversionOptions(correctMixed, sourceFraction) {
     }
   });
 
-  while (options.length < 3) {
-    const whole = Math.max(1, correctMixed.whole + randomInt(-1, 1));
-    const numerator = randomInt(1, correctMixed.denominator - 1);
-    const key = `mixed-${whole}-${numerator}-${correctMixed.denominator}`;
-    if (!options.some((option) => option.key === key)) {
-      options.push(buildChoiceOption(key, buildMixedNumberMarkup(whole, numerator, correctMixed.denominator), `${whole} ${numerator}/${correctMixed.denominator}`));
-    }
-  }
-
   return {
-    options: shuffle(options),
+    options: shuffle(options.slice(0, 3)),
     correctKey,
   };
 }
@@ -758,6 +776,13 @@ function buildMixedConversionOptions(sourceMixed, correctFraction) {
     { numerator: correctFraction.numerator + 1, denominator: correctFraction.denominator },
   ];
 
+  for (let offset = -3; offset <= 3; offset += 1) {
+    distractors.push({
+      numerator: Math.max(1, correctFraction.numerator + offset),
+      denominator: correctFraction.denominator,
+    });
+  }
+
   distractors.forEach((fraction) => {
     const text = fractionToText(fraction);
     const key = `fraction-${text}`;
@@ -766,17 +791,8 @@ function buildMixedConversionOptions(sourceMixed, correctFraction) {
     }
   });
 
-  while (options.length < 3) {
-    const numerator = correctFraction.numerator + randomInt(1, 3);
-    const text = `${numerator}/${correctFraction.denominator}`;
-    const key = `fraction-${text}`;
-    if (!options.some((option) => option.key === key)) {
-      options.push(buildChoiceOption(key, buildCompactFractionMarkup(numerator, correctFraction.denominator), text));
-    }
-  }
-
   return {
-    options: shuffle(options),
+    options: shuffle(options.slice(0, 3)),
     correctKey: `fraction-${correctText}`,
   };
 }
@@ -961,8 +977,8 @@ function createProperImproperIdentifyChallenge() {
     prompt: 'Que tipo de fraccion es?',
     focus: fraction,
     options: shuffle([
-      buildChoiceOption('proper', buildTextOptionMarkup('Propia', 'Menor que 1 entero'), 'Propia'),
-      buildChoiceOption('improper', buildTextOptionMarkup('Impropia', 'Igual o mayor que 1 entero'), 'Impropia'),
+      buildChoiceOption('proper', buildTextOptionMarkup('Propia', 'Numerador menor'), 'Propia'),
+      buildChoiceOption('improper', buildTextOptionMarkup('Impropia', 'Numerador mayor o igual'), 'Impropia'),
     ]),
     correctOptionKey: correctKey,
     hint: 'Compara el numerador con el denominador.',
@@ -1126,12 +1142,25 @@ function renderModeButtons(modes) {
 
 function renderGuide(guide) {
   guideTitle.textContent = guide.title;
-  guideCardTitle1.textContent = guide.cards[0].title;
-  guideCardText1.textContent = guide.cards[0].text;
-  guideCardTitle2.textContent = guide.cards[1].title;
-  guideCardText2.textContent = guide.cards[1].text;
-  guideCardTitle3.textContent = guide.cards[2].title;
-  guideCardText3.textContent = guide.cards[2].text;
+  const sections = guide.sections || [{ cards: guide.cards }];
+
+  guideGrid.innerHTML = sections
+    .map((section) => {
+      const sectionTitle = section.title ? `<h3 class="guide-section-title">${section.title}</h3>` : '';
+      const cards = section.cards
+        .map(
+          (card) => `
+            <article>
+              <h3>${card.title}</h3>
+              <p>${card.text}</p>
+            </article>
+          `
+        )
+        .join('');
+
+      return `${sectionTitle}${cards}`;
+    })
+    .join('');
 }
 
 function renderAchievements() {
