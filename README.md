@@ -39,9 +39,12 @@ La app queda con icono propio y puede abrirse como si fuera una aplicacion.
 - Actividad de comparacion
 - Actividad de multiplicacion
 - Actividad de division
+- Actividad de suma
+- Actividad de resta
 - Tecnicas propias por actividad
 - Niveles guiado, practica y desafio
 - Simplificacion guiada en operaciones
+- Igualacion guiada de denominadores en suma y resta
 - Pistas y explicacion inmediata
 - Marcador global de aciertos y racha
 - Primeros logros y medallas de progreso
