@@ -80,14 +80,207 @@ h1 {
 
 .achievement-strip {
   display: flex;
+  flex-direction: column;
   gap: 12px;
-  align-items: center;
+  align-items: stretch;
   margin-bottom: 16px;
   padding: 14px 16px;
   border-radius: 20px;
   background: rgba(255, 255, 255, 0.82);
   border: 1px solid rgba(23, 50, 77, 0.08);
   box-shadow: 0 12px 30px rgba(23, 50, 77, 0.08);
+}
+
+/* --- Rango y barra de nivel --- */
+.rank-strip {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #fff7ed, #ffedd5);
+  border: 1px solid #fdba74;
+  box-shadow: 0 12px 30px rgba(194, 65, 12, 0.1);
+}
+
+.rank-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.rank-name {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #9a3412;
+}
+
+.rank-level {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #c2410c;
+}
+
+.rank-bar {
+  height: 12px;
+  border-radius: 999px;
+  background: rgba(154, 52, 18, 0.14);
+  overflow: hidden;
+}
+
+.rank-bar-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #fb923c, #ea580c);
+  transition: width 0.45s ease;
+}
+
+.rank-hint {
+  font-size: 0.85rem;
+  color: #7c2d12;
+}
+
+/* --- Medallas: cinta + disco metalico + estrellas de grado --- */
+.trophy-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+  gap: 14px 10px;
+}
+
+.trophy {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 0 4px 6px;
+}
+
+/* Cinta: dos tiras rotadas que se solapan con el disco */
+.trophy .ribbon {
+  display: flex;
+  justify-content: center;
+  margin-bottom: -13px;
+  z-index: 1;
+}
+
+.trophy .ribbon i {
+  display: block;
+  width: 18px;
+  height: 30px;
+  background: var(--ribbon, #94a3b8);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 78%, 0 100%);
+}
+
+.trophy .ribbon i:first-child { transform: rotate(-12deg) translateX(4px); }
+.trophy .ribbon i:last-child { transform: rotate(12deg) translateX(-4px); filter: brightness(0.88); }
+
+/* Disco metalico: luz descentrada + sombra interior = volumen abombado */
+.trophy .disc {
+  position: relative;
+  z-index: 2;
+  width: 58px;
+  height: 58px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 1.5rem;
+  background: radial-gradient(circle at 32% 28%, var(--light, #e2e8f0), var(--dark, #94a3b8));
+  box-shadow:
+    inset 0 0 0 3px #ffffff55,
+    inset 0 -6px 12px #00000044,
+    0 4px 12px var(--glow, #94a3b855);
+  overflow: hidden;
+}
+
+/* Troquelado interior */
+.trophy .disc::after {
+  content: "";
+  position: absolute;
+  inset: 5px;
+  border: 2px dashed #ffffff1a;
+  border-radius: 50%;
+}
+
+/* Brillo que barre: destello corto y pausa larga para que no canse */
+.trophy .disc::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 40%, #ffffffaa 50%, transparent 60%);
+  background-size: 250% 250%;
+  animation: shine 5.5s ease-in-out infinite;
+}
+
+@keyframes shine {
+  0%, 72% { background-position: 130% 0; }
+  88%, 100% { background-position: -30% 0; }
+}
+
+.trophy .stars {
+  margin-top: 5px;
+  font-size: 0.72rem;
+  letter-spacing: 1px;
+  color: var(--dark, #94a3b8);
+}
+
+.trophy .stars b { color: rgba(15, 23, 42, 0.16); font-weight: inherit; }
+
+.trophy .tn {
+  margin-top: 2px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: #1e293b;
+}
+
+.trophy .mbar {
+  width: 100%;
+  height: 5px;
+  margin-top: 5px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.1);
+  overflow: hidden;
+}
+
+.trophy .mbar i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--dark, #94a3b8);
+  transition: width 0.45s ease;
+}
+
+.trophy .tsub {
+  margin-top: 3px;
+  font-size: 0.7rem;
+  color: #64748b;
+}
+
+/* Bloqueada: opacidad, nunca grayscale (ensucia los colores) */
+.trophy.t0 { opacity: 0.45; }
+.trophy.t0 .disc::before { animation: none; }
+
+.trophy.t1 { --light: #f0c9a0; --dark: #a1642a; --glow: #a1642a55; --ribbon: #7c5c3e; }
+.trophy.t2 { --light: #f1f5f9; --dark: #8895a7; --glow: #8895a755; --ribbon: #64748b; }
+/* Cinta roja en el oro: es lo que se asocia a una medalla de campeon */
+.trophy.t3 { --light: #ffeaa0; --dark: #d99a08; --glow: #f59e0b66; --ribbon: #dc2626; }
+.trophy.t4 { --light: #d8fbff; --dark: #22b6d6; --glow: #22d3ee77; --ribbon: #2563eb; }
+
+/* El grado maximo flota para destacarse del resto */
+.trophy.t4 .disc { animation: float 2.8s ease-in-out infinite; }
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .trophy .disc::before,
+  .trophy.t4 .disc { animation: none; }
 }
 
 .achievement-title {

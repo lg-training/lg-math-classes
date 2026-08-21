@@ -47,11 +47,20 @@
         </article>
       </section>
 
-      <section class="achievement-strip" aria-live="polite">
-        <span class="achievement-title">Logros</span>
-        <div class="achievement-list" id="achievementList">
-          <span class="achievement-empty">Juega una ronda para desbloquear tu primera medalla.</span>
+      <section class="rank-strip" aria-live="polite">
+        <div class="rank-head">
+          <span class="rank-name" id="rankName">Aprendiz</span>
+          <span class="rank-level" id="rankLevel">Nivel 1</span>
         </div>
+        <div class="rank-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="rankBar">
+          <div class="rank-bar-fill" id="rankFill"></div>
+        </div>
+        <span class="rank-hint" id="rankHint">Acierta para ganar tus primeros puntos.</span>
+      </section>
+
+      <section class="achievement-strip" aria-live="polite">
+        <span class="achievement-title">Trofeos</span>
+        <div class="trophy-grid" id="achievementList"></div>
       </section>
 
       <section class="panel activity-panel">
@@ -151,11 +160,88 @@
 
     <script src="app.js"></script>
     <script>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('./service-worker.js');
+      // ---- Auto-actualizacion (cache-busting via version.txt) ----
+      // El CI escribe version.txt con el SHA del commit. Comparamos ese valor
+      // con el guardado en localStorage y recargamos cuando cambia.
+      (function () {
+        var BUILD_KEY = 'mgf.build';
+        var CHECK_MS = 5 * 60 * 1000;
+        var pendingUpdate = false;
+        var swRegistration = null;
+
+        function busy() {
+          // No interrumpir a media pregunta: solo recargamos si ya respondio.
+          try {
+            return typeof state === 'object' && state && state.currentChallenge && !state.answered;
+          } catch (error) {
+            return false;
+          }
+        }
+
+        function applyUpdate() {
+          if (swRegistration && swRegistration.waiting) {
+            swRegistration.waiting.postMessage('skip-waiting');
+          }
+          setTimeout(function () {
+            location.reload();
+          }, 1200);
+        }
+
+        function checkVersion() {
+          fetch('version.txt?_=' + Date.now(), { cache: 'no-store' })
+            .then(function (response) {
+              if (!response.ok) return null;
+              return response.text();
+            })
+            .then(function (text) {
+              if (!text) return;
+              var version = text.trim();
+              if (!version) return;
+              var previous = localStorage.getItem(BUILD_KEY);
+              // Primera visita: solo registramos la version actual.
+              if (!previous) {
+                localStorage.setItem(BUILD_KEY, version);
+                return;
+              }
+              if (previous === version) return;
+              // Guardar ANTES de recargar para no entrar en bucle de recargas.
+              localStorage.setItem(BUILD_KEY, version);
+              if (busy()) {
+                pendingUpdate = true;
+                return;
+              }
+              applyUpdate();
+            })
+            .catch(function () {
+              // Offline o desarrollo local sin version.txt: ignorar en silencio.
+            });
+        }
+
+        if ('serviceWorker' in navigator) {
+          window.addEventListener('load', function () {
+            navigator.serviceWorker.register('./service-worker.js').then(function (registration) {
+              swRegistration = registration;
+            });
+          });
+        }
+
+        checkVersion();
+        setInterval(checkVersion, CHECK_MS);
+        document.addEventListener('visibilitychange', function () {
+          if (document.hidden) return;
+          if (pendingUpdate && !busy()) {
+            applyUpdate();
+            return;
+          }
+          checkVersion();
         });
-      }
+        // Si quedo una actualizacion pendiente, se aplica al pedir nueva pregunta.
+        document.addEventListener('click', function (event) {
+          if (!pendingUpdate) return;
+          var target = event.target.closest && event.target.closest('#nextButton, #newQuestion, [data-next]');
+          if (target) applyUpdate();
+        });
+      })();
     </script>
   </body>
   </html>

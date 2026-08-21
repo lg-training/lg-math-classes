@@ -51,6 +51,9 @@ No hay build ni test suite configurados.
 - Pistas y explicacion inmediata.
 - Marcador de aciertos y racha.
 - Logros y progresion guiada.
+- Progresion de largo recorrido: XP, 8 rangos y 10 trofeos con 4 grados (bronce/plata/oro/diamante).
+- Progreso persistente en `localStorage` (clave `mgFracciones.v1`): aciertos, racha, mejor racha, medallas y estadisticas por actividad.
+- Auto-actualizacion del sitio desplegado mediante `version.txt` generado en CI.
 - Visualizacion tipo pizza para representar fracciones.
 
 ## Decisiones importantes
@@ -64,6 +67,12 @@ No hay build ni test suite configurados.
 ## Notas de mantenimiento
 
 - Si cambian assets cacheados, actualizar `CACHE_NAME` en `service-worker.js` para evitar cache viejo.
+- Las medallas se guardan por `id` estable (mapa `ACHIEVEMENTS` en `app.js`), no por su texto visible. Cambiar el texto no debe borrar progreso; cambiar el `id` si.
+- La curva de XP (`XP_BASE_NEED=40`, `XP_GROWTH=1.08`) esta validada por simulacion. Si se toca, volver a simular: con base pequena el redondeo a multiplos de 5 la degenera en lineal y los rangos se agotan.
+- Las medallas son CSS puro (cinta + disco + estrellas), tematizadas por la clase `t0..t4` y variables `--light/--dark/--glow/--ribbon`. Para revisar el diseno sin jugar, generar un `preview-medallas.html` temporal que extraiga el CSS real y `buildTrophyMarkup`, y borrarlo antes del commit.
+- Al editar CSS por programa, validar balance de llaves y ausencia de caracteres no-ASCII antes de dar por bueno el cambio.
+- El stat `Nivel` del marcador es `progressionStep` (Guiado/Practica/Desafio); el nivel de XP se muestra como `Rango`. No mezclarlos.
+- El service worker es network-first para el shell (`.html/.css/.js`) y cache-first para iconos/manifest.
 - Evitar introducir tooling pesado si no es necesario.
 - Si se agregan ejercicios, mantener explicaciones en espanol claro y orientadas a aprendizaje visual.
 - La estructura actual ya actua como laboratorio base, asi que las futuras ampliaciones deberian entrar como nuevas actividades o niveles, no como parches aislados.

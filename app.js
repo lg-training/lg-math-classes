@@ -1,13 +1,125 @@
+const ACTIVITY_KEYS = ['compare', 'multiply', 'divide', 'add', 'subtract', 'proper-improper'];
+
+// Medallas con id estable: el texto visible puede cambiar sin borrar el progreso guardado.
+const ACHIEVEMENTS = {
+  'first-correct': 'Primer acierto',
+  'streak-3': 'Racha de 3',
+  'streak-5': 'Racha de 5',
+  'super-simplifier': 'Super simplificador',
+  'denominator-matcher': 'Igualador de denominadores',
+  'mixed-master': 'Maestro de mixtas',
+  'fraction-explorer': 'Explorador de fracciones',
+};
+
+// Mapa de compatibilidad: progreso guardado antes de usar ids.
+const LEGACY_ACHIEVEMENTS = Object.entries(ACHIEVEMENTS).reduce((map, [id, label]) => {
+  map[label] = id;
+  return map;
+}, {});
+
+function createActivityStats() {
+  return ACTIVITY_KEYS.reduce((stats, key) => {
+    stats[key] = { correct: 0, attempts: 0, bestStreak: 0 };
+    return stats;
+  }, {});
+}
+
 const state = {
   activity: 'compare',
   mode: 'mixed',
   currentChallenge: null,
   correct: 0,
   streak: 0,
+  bestStreak: 0,
   answered: false,
   progressionStep: 'guided',
   achievements: [],
+  byActivity: createActivityStats(),
+  xp: 0,
+  daysPlayed: 0,
+  lastPlayDay: '',
 };
+
+const STORAGE_KEY = 'mgFracciones.v1';
+
+function loadProgress() {
+  let saved = null;
+
+  try {
+    saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+  } catch (error) {
+    saved = null;
+  }
+
+  if (!saved || typeof saved !== 'object') {
+    return;
+  }
+
+  state.correct = Number.isFinite(saved.correct) ? saved.correct : 0;
+  state.streak = Number.isFinite(saved.streak) ? saved.streak : 0;
+  state.bestStreak = Number.isFinite(saved.bestStreak) ? saved.bestStreak : state.streak;
+  state.xp = Number.isFinite(saved.xp) ? saved.xp : 0;
+  state.daysPlayed = Number.isFinite(saved.daysPlayed) ? saved.daysPlayed : 0;
+  state.lastPlayDay = typeof saved.lastPlayDay === 'string' ? saved.lastPlayDay : '';
+
+  if (Array.isArray(saved.achievements)) {
+    // Acepta ids nuevos y nombres antiguos guardados como texto.
+    state.achievements = saved.achievements
+      .map((entry) => (ACHIEVEMENTS[entry] ? entry : LEGACY_ACHIEVEMENTS[entry]))
+      .filter((id, index, list) => id && list.indexOf(id) === index);
+  }
+
+  if (saved.byActivity && typeof saved.byActivity === 'object') {
+    ACTIVITY_KEYS.forEach((key) => {
+      const entry = saved.byActivity[key];
+      if (!entry || typeof entry !== 'object') {
+        return;
+      }
+      state.byActivity[key] = {
+        correct: Number.isFinite(entry.correct) ? entry.correct : 0,
+        attempts: Number.isFinite(entry.attempts) ? entry.attempts : 0,
+        bestStreak: Number.isFinite(entry.bestStreak) ? entry.bestStreak : 0,
+      };
+    });
+  }
+
+  if (ACTIVITY_KEYS.includes(saved.activity)) {
+    state.activity = saved.activity;
+  }
+
+  if (typeof saved.mode === 'string') {
+    state.mode = saved.mode;
+  }
+
+  if (typeof saved.progressionStep === 'string') {
+    state.progressionStep = saved.progressionStep;
+  }
+}
+
+function saveProgress() {
+  try {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        version: 1,
+        activity: state.activity,
+        mode: state.mode,
+        correct: state.correct,
+        streak: state.streak,
+        bestStreak: state.bestStreak,
+        xp: state.xp,
+        daysPlayed: state.daysPlayed,
+        lastPlayDay: state.lastPlayDay,
+        progressionStep: state.progressionStep,
+        achievements: state.achievements,
+        byActivity: state.byActivity,
+        updatedAt: new Date().toISOString(),
+      })
+    );
+  } catch (error) {
+    // Modo privado o almacenamiento lleno: la partida sigue, solo no se guarda.
+  }
+}
 
 const modeLabelMap = {
   mixed: 'Mixto',
@@ -257,6 +369,11 @@ const controlsTitle = document.getElementById('controlsTitle');
 const controlsDescription = document.getElementById('controlsDescription');
 const modeControls = document.getElementById('modeControls');
 const achievementList = document.getElementById('achievementList');
+const rankName = document.getElementById('rankName');
+const rankLevel = document.getElementById('rankLevel');
+const rankFill = document.getElementById('rankFill');
+const rankBar = document.getElementById('rankBar');
+const rankHint = document.getElementById('rankHint');
 const activityLabel = document.getElementById('activityLabel');
 const levelLabel = document.getElementById('levelLabel');
 const techniqueChip = document.getElementById('techniqueChip');
@@ -1136,6 +1253,7 @@ function renderModeButtons(modes) {
     button.addEventListener('click', () => {
       state.mode = button.dataset.mode;
       renderChallenge();
+      saveProgress();
     });
   });
 }
@@ -1163,49 +1281,179 @@ function renderGuide(guide) {
     .join('');
 }
 
-function renderAchievements() {
-  if (state.achievements.length === 0) {
-    achievementList.innerHTML = '<span class="achievement-empty">Juega una ronda para desbloquear tu primera medalla.</span>';
-    return;
+// --- Progresion de largo recorrido: XP, rangos y trofeos por grados ---
+// Curva geometrica validada por simulacion: con base lineal el nivel se agota
+// en ~100 rondas, igual que un sistema de medallas binarias.
+const XP_BASE_NEED = 40;
+const XP_GROWTH = 1.08;
+const XP_PER_CORRECT = 10;
+const XP_STREAK_BONUS_MAX = 10;
+
+const RANKS = [
+  { level: 1, name: 'Aprendiz' },
+  { level: 3, name: 'Explorador' },
+  { level: 6, name: 'Cocinero' },
+  { level: 10, name: 'Chef' },
+  { level: 15, name: 'Experto' },
+  { level: 22, name: 'Maestro' },
+  { level: 30, name: 'Campeon' },
+  { level: 40, name: 'Leyenda' },
+];
+
+const GRADES = ['Bronce', 'Plata', 'Oro', 'Diamante'];
+
+const TROPHIES = [
+  { id: 'act-compare', label: 'Comparador', icon: '⚖️', thresholds: [5, 15, 40, 100], value: (s) => s.byActivity.compare.correct },
+  { id: 'act-multiply', label: 'Multiplicador', icon: '✖️', thresholds: [5, 15, 40, 100], value: (s) => s.byActivity.multiply.correct },
+  { id: 'act-divide', label: 'Divisor', icon: '➗', thresholds: [5, 15, 40, 100], value: (s) => s.byActivity.divide.correct },
+  { id: 'act-add', label: 'Sumador', icon: '➕', thresholds: [5, 15, 40, 100], value: (s) => s.byActivity.add.correct },
+  { id: 'act-subtract', label: 'Restador', icon: '➖', thresholds: [5, 15, 40, 100], value: (s) => s.byActivity.subtract.correct },
+  {
+    id: 'act-proper-improper',
+    label: 'Maestro de mixtas',
+    icon: '🍕',
+    thresholds: [5, 15, 40, 100],
+    value: (s) => s.byActivity['proper-improper'].correct,
+  },
+  { id: 'total-correct', label: 'Aciertos', icon: '🎯', thresholds: [10, 50, 150, 400], value: (s) => s.correct },
+  { id: 'best-streak', label: 'Mejor racha', icon: '🔥', thresholds: [3, 7, 15, 30], value: (s) => s.bestStreak },
+  { id: 'days-played', label: 'Dias jugados', icon: '📅', thresholds: [2, 7, 21, 60], value: (s) => s.daysPlayed },
+  {
+    id: 'variety',
+    label: 'Todoterreno',
+    icon: '🌟',
+    thresholds: [2, 3, 5, 6],
+    value: (s) => ACTIVITY_KEYS.filter((key) => s.byActivity[key].correct >= 5).length,
+  },
+];
+
+// Nivel alcanzado con una cantidad total de XP, mas el progreso dentro del nivel.
+function levelInfo(totalXp) {
+  let level = 1;
+  let need = XP_BASE_NEED;
+  let remaining = Math.max(0, totalXp);
+
+  while (remaining >= need && level < 999) {
+    remaining -= need;
+    level += 1;
+    need = Math.round((need * XP_GROWTH) / 5) * 5;
   }
 
-  achievementList.innerHTML = state.achievements
-    .map((achievement) => `<span class="achievement-badge">${achievement}</span>`)
-    .join('');
+  let rank = RANKS[0];
+  RANKS.forEach((entry) => {
+    if (level >= entry.level) {
+      rank = entry;
+    }
+  });
+
+  return { level, rank: rank.name, intoLevel: remaining, need };
 }
 
-function unlockAchievement(name) {
-  if (!state.achievements.includes(name)) {
-    state.achievements.push(name);
+// Grado alcanzado en un trofeo: 0 = sin empezar, 4 = diamante.
+function trophyInfo(trophy) {
+  const value = trophy.value(state);
+  let grade = 0;
+  trophy.thresholds.forEach((threshold, index) => {
+    if (value >= threshold) {
+      grade = index + 1;
+    }
+  });
+
+  const next = trophy.thresholds[grade];
+  const previous = grade === 0 ? 0 : trophy.thresholds[grade - 1];
+  const percent = next ? Math.min(100, Math.round(((value - previous) / (next - previous)) * 100)) : 100;
+
+  return { value, grade, next, percent };
+}
+
+function todayKey() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function registerPlayDay() {
+  const today = todayKey();
+  if (state.lastPlayDay === today) {
+    return;
+  }
+  state.lastPlayDay = today;
+  state.daysPlayed += 1;
+}
+
+function awardXp(isCorrect) {
+  if (!isCorrect) {
+    return;
+  }
+  const bonus = Math.min(XP_STREAK_BONUS_MAX, Math.max(0, state.streak - 1) * 2);
+  state.xp += XP_PER_CORRECT + bonus;
+}
+
+function renderRank() {
+  const info = levelInfo(state.xp);
+  rankName.textContent = info.rank;
+  rankLevel.textContent = `Nivel ${info.level}`;
+  const percent = Math.min(100, Math.round((info.intoLevel / info.need) * 100));
+  rankFill.style.width = `${percent}%`;
+  rankBar.setAttribute('aria-valuenow', String(percent));
+  rankHint.textContent = `${info.need - info.intoLevel} puntos para el nivel ${info.level + 1}`;
+}
+
+// Markup de una medalla: cinta + disco metalico + estrellas de grado.
+// Se usa tanto en la app como en preview-medallas.html.
+function buildTrophyMarkup(trophy, info) {
+  const stars = `${'★'.repeat(info.grade)}<b>${'★'.repeat(4 - info.grade)}</b>`;
+  const face = info.grade === 0 ? '🔒' : trophy.icon;
+  const goal = info.next ? `${info.value} / ${info.next}` : `${info.value} ¡maximo!`;
+
+  return `
+    <article class="trophy t${info.grade}" title="${trophy.label}: ${goal}">
+      <div class="ribbon"><i></i><i></i></div>
+      <div class="disc">${face}</div>
+      <div class="stars">${stars}</div>
+      <div class="tn">${trophy.label}</div>
+      <div class="mbar"><i style="width:${info.percent}%"></i></div>
+      <div class="tsub">${goal}</div>
+    </article>
+  `;
+}
+
+function renderAchievements() {
+  // Los trofeos nunca se ven "terminados": siempre muestran el siguiente umbral.
+  achievementList.innerHTML = TROPHIES.map((trophy) => buildTrophyMarkup(trophy, trophyInfo(trophy))).join('');
+
+  renderRank();
+}
+
+function unlockAchievement(id) {
+  if (!state.achievements.includes(id)) {
+    state.achievements.push(id);
   }
 }
 
 function updateAchievementsOnSuccess(challenge) {
-  unlockAchievement('Primer acierto');
+  unlockAchievement('first-correct');
 
   if (state.streak >= 3) {
-    unlockAchievement('Racha de 3');
+    unlockAchievement('streak-3');
   }
 
   if (state.streak >= 5) {
-    unlockAchievement('Racha de 5');
+    unlockAchievement('streak-5');
   }
 
   if ((challenge.activity === 'multiply' || challenge.activity === 'divide') && challenge.explanation.includes('simplific')) {
-    unlockAchievement('Super simplificador');
+    unlockAchievement('super-simplifier');
   }
 
   if ((challenge.activity === 'add' || challenge.activity === 'subtract') && challenge.explanation.includes('denominador comun')) {
-    unlockAchievement('Igualador de denominadores');
+    unlockAchievement('denominator-matcher');
   }
 
   if (challenge.activity === 'proper-improper') {
-    unlockAchievement('Maestro de mixtas');
+    unlockAchievement('mixed-master');
   }
 
-  const activitySet = new Set(state.achievements);
-  if (state.correct >= 6 || activitySet.has('Super simplificador')) {
-    unlockAchievement('Explorador de fracciones');
+  if (state.correct >= 6 || state.achievements.includes('super-simplifier')) {
+    unlockAchievement('fraction-explorer');
   }
 }
 
@@ -1299,13 +1547,29 @@ function answer(selectedKey) {
   const correctOption = challenge.options.find((option) => option.key === correctKey);
 
   state.answered = true;
+  registerPlayDay();
+
+  const activityStats = state.byActivity[challenge.activity];
+  if (activityStats) {
+    activityStats.attempts += 1;
+  }
 
   if (isCorrect) {
     state.correct += 1;
     state.streak += 1;
+    if (state.streak > state.bestStreak) {
+      state.bestStreak = state.streak;
+    }
+    if (activityStats) {
+      activityStats.correct += 1;
+      if (state.streak > activityStats.bestStreak) {
+        activityStats.bestStreak = state.streak;
+      }
+    }
     feedbackBox.className = 'feedback success';
     feedbackBox.textContent = `Muy bien. ${challenge.hint} ${challenge.explanation}`;
     updateAchievementsOnSuccess(challenge);
+    awardXp(true);
   } else {
     state.streak = 0;
     feedbackBox.className = 'feedback error';
@@ -1317,6 +1581,7 @@ function answer(selectedKey) {
   streakCount.textContent = state.streak;
   renderAchievements();
   updateActionLabels();
+  saveProgress();
 }
 
 answerOptions.addEventListener('click', (event) => {
@@ -1337,8 +1602,17 @@ activityButtons.forEach((button) => {
     state.activity = button.dataset.activity;
     state.mode = activityContent[state.activity].defaultMode;
     renderChallenge();
+    saveProgress();
   });
 });
 
+loadProgress();
+// El modo guardado debe existir en la actividad guardada; si no, se usa el de por defecto.
+const restoredContent = activityContent[state.activity];
+if (!restoredContent || !restoredContent.modes.some((mode) => mode.key === state.mode)) {
+  state.mode = restoredContent ? restoredContent.defaultMode : 'mixed';
+}
+correctCount.textContent = state.correct;
+streakCount.textContent = state.streak;
 renderAchievements();
 renderChallenge();
