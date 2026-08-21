@@ -26,6 +26,9 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
+      - name: Generar version.txt (cache-busting)
+        run: echo "${GITHUB_SHA}" > version.txt
+
       - name: Upload static files
         uses: actions/upload-pages-artifact@v3
         with:
