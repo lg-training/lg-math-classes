@@ -58,10 +58,6 @@
         <span class="rank-hint" id="rankHint">Acierta para ganar tus primeros puntos.</span>
       </section>
 
-      <section class="achievement-strip" aria-live="polite">
-        <span class="achievement-title">Trofeos</span>
-        <div class="trophy-grid" id="achievementList"></div>
-      </section>
 
       <section class="panel activity-panel">
         <div class="section-heading">
@@ -157,6 +153,58 @@
         </div>
       </section>
     </main>
+
+    <!-- ===== Showcase de medallas (pantalla completa) ===== -->
+    <div id="show" role="dialog" aria-modal="true" aria-label="Mis medallas">
+      <div class="showwrap">
+        <div class="bigchest" id="bigChest"><i class="lid"></i><i class="box"></i><i class="lock"></i></div>
+        <h2 id="showTitle">Abriendo el cofre...</h2>
+        <div class="trophy-grid showgrid" id="showGrid"></div>
+        <div class="showfoot" id="showFoot">
+          <button class="showbtn" type="button" id="showToVault">🏅 Ver todas con calma</button>
+          <button class="showbtn ghost" type="button" id="showClose">Seguir jugando</button>
+        </div>
+        <div class="skip" id="skipHint">toca para saltar</div>
+      </div>
+    </div>
+
+    <!-- ===== Vault de medallas (cajon izquierdo) ===== -->
+    <button id="vaultBtn" class="fab fab-vault" type="button" title="Mi cofre de medallas" aria-label="Mi cofre de medallas">
+      <span class="chest" id="chest"><i class="lid"></i><i class="box"></i><i class="lock"></i></span>
+      <span id="vaultBadge" class="fab-badge hide">0</span>
+    </button>
+    <div id="vault" class="drawer" role="dialog" aria-modal="true" aria-label="Mis medallas">
+      <div class="drawer-panel vpanel">
+        <div class="drawer-head">
+          <b>🏆 Mi cofre</b>
+          <button class="xbtn" type="button" data-close="vault" aria-label="Cerrar">✕</button>
+        </div>
+        <div class="vsum">
+          <div class="vcount"><b id="vGot">0</b> <span>de <b id="vAll">40</b> conseguidas</span></div>
+          <div class="mbar"><i id="vBar" style="width:0"></i></div>
+          <div class="vmetals" id="vMetals"></div>
+        </div>
+        <div class="drawer-body"><div class="trophy-grid" id="medalGrid"></div></div>
+      </div>
+    </div>
+
+    <!-- ===== Misiones de hoy (cajon derecho) ===== -->
+    <button id="questBtn" class="fab fab-quest" type="button" title="Misiones de hoy" aria-label="Misiones de hoy">
+      🎯<span id="questBadge" class="fab-badge">0</span>
+    </button>
+    <div id="quests" class="drawer" role="dialog" aria-modal="true" aria-label="Misiones de hoy">
+      <div class="drawer-panel qpanel">
+        <div class="drawer-head">
+          <b>🎯 Misiones de hoy</b>
+          <button class="xbtn" type="button" data-close="quests" aria-label="Cerrar">✕</button>
+        </div>
+        <div class="qstreak" id="misDay"></div>
+        <div class="drawer-body"><div id="misList"></div></div>
+        <div class="qfoot">Se renuevan cada dia a medianoche 🌙</div>
+      </div>
+    </div>
+
+    <div id="toastHost" class="toast-host" aria-live="polite"></div>
 
     <script src="app.js"></script>
     <script>

@@ -38,6 +38,11 @@ const state = {
   xp: 0,
   daysPlayed: 0,
   lastPlayDay: '',
+  dayStreak: 0,
+  bestDayStreak: 0,
+  missions: null,
+  grades: {},
+  seenGrades: 0,
 };
 
 const STORAGE_KEY = 'mgFracciones.v1';
@@ -61,6 +66,15 @@ function loadProgress() {
   state.xp = Number.isFinite(saved.xp) ? saved.xp : 0;
   state.daysPlayed = Number.isFinite(saved.daysPlayed) ? saved.daysPlayed : 0;
   state.lastPlayDay = typeof saved.lastPlayDay === 'string' ? saved.lastPlayDay : '';
+  state.dayStreak = Number.isFinite(saved.dayStreak) ? saved.dayStreak : 0;
+  state.bestDayStreak = Number.isFinite(saved.bestDayStreak) ? saved.bestDayStreak : 0;
+  state.seenGrades = Number.isFinite(saved.seenGrades) ? saved.seenGrades : 0;
+  if (saved.grades && typeof saved.grades === 'object') {
+    state.grades = saved.grades;
+  }
+  if (saved.missions && typeof saved.missions === 'object' && Array.isArray(saved.missions.list)) {
+    state.missions = saved.missions;
+  }
 
   if (Array.isArray(saved.achievements)) {
     // Acepta ids nuevos y nombres antiguos guardados como texto.
@@ -110,6 +124,11 @@ function saveProgress() {
         xp: state.xp,
         daysPlayed: state.daysPlayed,
         lastPlayDay: state.lastPlayDay,
+        dayStreak: state.dayStreak,
+        bestDayStreak: state.bestDayStreak,
+        missions: state.missions,
+        grades: state.grades,
+        seenGrades: state.seenGrades,
         progressionStep: state.progressionStep,
         achievements: state.achievements,
         byActivity: state.byActivity,
@@ -368,7 +387,30 @@ const controlsKicker = document.getElementById('controlsKicker');
 const controlsTitle = document.getElementById('controlsTitle');
 const controlsDescription = document.getElementById('controlsDescription');
 const modeControls = document.getElementById('modeControls');
-const achievementList = document.getElementById('achievementList');
+const achievementList = document.getElementById('medalGrid');
+const medalGrid = achievementList;
+const vaultBtn = document.getElementById('vaultBtn');
+const vaultBadge = document.getElementById('vaultBadge');
+const vault = document.getElementById('vault');
+const vGot = document.getElementById('vGot');
+const vAll = document.getElementById('vAll');
+const vBar = document.getElementById('vBar');
+const vMetals = document.getElementById('vMetals');
+const chest = document.getElementById('chest');
+const show = document.getElementById('show');
+const showGrid = document.getElementById('showGrid');
+const showTitle = document.getElementById('showTitle');
+const showFoot = document.getElementById('showFoot');
+const skipHint = document.getElementById('skipHint');
+const bigChest = document.getElementById('bigChest');
+const showToVault = document.getElementById('showToVault');
+const showClose = document.getElementById('showClose');
+const questBtn = document.getElementById('questBtn');
+const questBadge = document.getElementById('questBadge');
+const quests = document.getElementById('quests');
+const misDay = document.getElementById('misDay');
+const misList = document.getElementById('misList');
+const toastHost = document.getElementById('toastHost');
 const rankName = document.getElementById('rankName');
 const rankLevel = document.getElementById('rankLevel');
 const rankFill = document.getElementById('rankFill');
@@ -1370,10 +1412,16 @@ function todayKey() {
   return new Date().toISOString().slice(0, 10);
 }
 
+// Racha de dias consecutivos: compara contra la fecha de ayer.
 function registerPlayDay() {
   const today = todayKey();
   if (state.lastPlayDay === today) {
     return;
+  }
+  const yesterday = new Date(Date.now() - 864e5).toISOString().slice(0, 10);
+  state.dayStreak = state.lastPlayDay === yesterday ? state.dayStreak + 1 : 1;
+  if (state.dayStreak > state.bestDayStreak) {
+    state.bestDayStreak = state.dayStreak;
   }
   state.lastPlayDay = today;
   state.daysPlayed += 1;
@@ -1416,11 +1464,346 @@ function buildTrophyMarkup(trophy, info) {
   `;
 }
 
-function renderAchievements() {
-  // Los trofeos nunca se ven "terminados": siempre muestran el siguiente umbral.
-  achievementList.innerHTML = TROPHIES.map((trophy) => buildTrophyMarkup(trophy, trophyInfo(trophy))).join('');
+// --- Misiones diarias ---
+// Deterministas por fecha: mismas misiones todo el dia, distintas al siguiente,
+// sin necesidad de backend ni de guardar el estado del generador.
+const MISSION_POOL = [
+  { t: 'ok', goal: 10, xp: 40, txt: (g) => `Consigue ${g} aciertos` },
+  { t: 'ok', goal: 18, xp: 70, txt: (g) => `Consigue ${g} aciertos` },
+  { t: 'answers', goal: 15, xp: 40, txt: (g) => `Responde ${g} preguntas` },
+  { t: 'streak', goal: 5, xp: 60, txt: (g) => `Encadena una racha de ${g}`, max: true },
+  { t: 'streak', goal: 8, xp: 90, txt: (g) => `Encadena una racha de ${g}`, max: true },
+  { t: 'act_compare', goal: 5, xp: 45, txt: (g) => `Acierta ${g} de comparar` },
+  { t: 'act_multiply', goal: 5, xp: 45, txt: (g) => `Acierta ${g} de multiplicar` },
+  { t: 'act_divide', goal: 5, xp: 45, txt: (g) => `Acierta ${g} de dividir` },
+  { t: 'act_add', goal: 5, xp: 45, txt: (g) => `Acierta ${g} de sumar` },
+  { t: 'act_subtract', goal: 5, xp: 45, txt: (g) => `Acierta ${g} de restar` },
+  { t: 'act_proper-improper', goal: 5, xp: 45, txt: (g) => `Acierta ${g} de propias e impropias` },
+];
 
+const MISSIONS_PER_DAY = 3;
+
+// Hash polinomico base 31 sobre la fecha: mismo dia -> mismas misiones.
+function seedFromDate(text) {
+  let hash = 0;
+  for (const char of text) {
+    hash = (hash * 31 + char.charCodeAt(0)) | 0;
+  }
+  return Math.abs(hash);
+}
+
+function refreshMissions() {
+  const today = todayKey();
+  if (state.missions && state.missions.day === today) {
+    return;
+  }
+
+  const hash = seedFromDate(today);
+  const picked = [];
+  // Paso 7 (coprimo con el tamano del pool) para barrer sin ciclar pronto.
+  for (let k = 0; picked.length < MISSIONS_PER_DAY && k < 60; k += 1) {
+    const candidate = MISSION_POOL[(hash + k * 7) % MISSION_POOL.length];
+    if (!picked.some((entry) => entry.t === candidate.t)) {
+      picked.push(candidate);
+    }
+  }
+
+  state.missions = {
+    day: today,
+    list: picked.map((mission) => ({
+      t: mission.t,
+      goal: mission.goal,
+      xp: mission.xp,
+      txt: mission.txt(mission.goal),
+      max: Boolean(mission.max),
+      progress: 0,
+      done: false,
+    })),
+  };
+}
+
+// Unico punto de entrada al progreso de misiones.
+function bumpMission(type, amount) {
+  if (!state.missions) {
+    return;
+  }
+
+  let completed = false;
+  state.missions.list.forEach((mission) => {
+    if (mission.done || mission.t !== type) {
+      return;
+    }
+    // `max` para metricas que no se acumulan (la racha es un maximo, no una suma).
+    mission.progress = mission.max ? Math.max(mission.progress, amount) : mission.progress + amount;
+    if (mission.progress >= mission.goal) {
+      mission.done = true;
+      state.xp += mission.xp;
+      showToast(`🎯 Mision cumplida: +${mission.xp} puntos`);
+      completed = true;
+    }
+  });
+
+  if (completed) {
+    pulse(questBtn);
+  }
+}
+
+function renderMissions() {
+  misDay.textContent = state.dayStreak > 1 ? `🔥 ${state.dayStreak} dias seguidos jugando` : '';
+
+  const list = state.missions ? state.missions.list : [];
+  misList.innerHTML = list
+    .map((mission) => {
+      const percent = Math.min(100, Math.round((mission.progress / mission.goal) * 100));
+      return `
+        <div class="mis ${mission.done ? 'done' : ''}">
+          <div class="mtop"><span>${mission.done ? '✅' : '⬜'} ${mission.txt}</span><b>+${mission.xp}</b></div>
+          <div class="mbar"><i style="width:${percent}%"></i></div>
+          <div class="msub">${Math.min(mission.progress, mission.goal)} / ${mission.goal}</div>
+        </div>
+      `;
+    })
+    .join('');
+
+  // El badge cuenta lo que FALTA, que motiva mas que lo conseguido.
+  const left = list.filter((mission) => !mission.done).length;
+  questBadge.textContent = left || '✓';
+  questBadge.classList.toggle('zero', !left);
+}
+
+// --- Vault de medallas ---
+function totalGrades() {
+  return TROPHIES.reduce((sum, trophy) => sum + trophyInfo(trophy).grade, 0);
+}
+
+// Detecta grados nuevos para avisar y hacer pulsar el boton del vault.
+function checkNewGrades() {
+  let won = false;
+  TROPHIES.forEach((trophy) => {
+    const now = trophyInfo(trophy).grade;
+    const previous = state.grades[trophy.id] || 0;
+    if (now > previous) {
+      state.grades[trophy.id] = now;
+      won = true;
+      for (let k = previous; k < now; k += 1) {
+        showToast(`${['🥉', '🥈', '🥇', '💎'][k]} ¡${trophy.label} ${GRADES[k]}!`);
+      }
+    }
+  });
+  if (won) {
+    pulse(vaultBtn);
+  }
+}
+
+function renderVault() {
+  const got = totalGrades();
+  const all = TROPHIES.length * 4;
+  vGot.textContent = got;
+  vAll.textContent = all;
+  vBar.style.width = `${Math.round((got / all) * 100)}%`;
+
+  const perMetal = [0, 0, 0, 0];
+  TROPHIES.forEach((trophy) => {
+    const { grade } = trophyInfo(trophy);
+    for (let i = 0; i < grade; i += 1) {
+      perMetal[i] += 1;
+    }
+  });
+  vMetals.innerHTML = ['🥉', '🥈', '🥇', '💎']
+    .map((icon, i) => `<div><b>${icon}</b>${perMetal[i]}</div>`)
+    .join('');
+
+  const unseen = Math.max(0, got - (state.seenGrades || 0));
+  vaultBadge.textContent = unseen;
+  vaultBadge.classList.toggle('hide', !unseen);
+
+  // Nunca se filtra la lista: las bloqueadas siguen mostrando cuanto falta.
+  medalGrid.innerHTML = TROPHIES.map((trophy) => buildTrophyMarkup(trophy, trophyInfo(trophy))).join('');
+}
+
+// --- Sonido sintetizado ---
+// Osciladores generados al vuelo: cero ficheros de audio, nada que cachear en el PWA.
+let audioCtx = null;
+
+function blip(freq, duration = 0.12, type = 'triangle', volume = 0.16) {
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+    gain.gain.setValueAtTime(0, audioCtx.currentTime);
+    gain.gain.linearRampToValueAtTime(volume, audioCtx.currentTime + 0.012);
+    gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+    osc.connect(gain).connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + duration + 0.02);
+  } catch (error) {
+    // Sin audio disponible: la animacion sigue funcionando igual.
+  }
+}
+
+function chord(freqs, duration = 0.6) {
+  freqs.forEach((freq, i) => setTimeout(() => blip(freq, duration, 'triangle', 0.13), i * 55));
+}
+
+// --- Revelado en cascada: pum pum pum ... PUMMM ---
+// Las conseguidas salen ordenadas por grado ascendente para que el crescendo
+// termine siempre en la mejor medalla que tenga.
+let showTimers = [];
+let showDone = false;
+
+function clearShowTimers() {
+  showTimers.forEach(clearTimeout);
+  showTimers = [];
+}
+
+function revealMedals(grid, options = {}) {
+  const cards = Array.from(grid.children);
+  grid.classList.add('reveal');
+  cards.forEach((card) => {
+    card.classList.remove('show', 'finale');
+    card.style.animation = '';
+    card.style.opacity = '';
+  });
+  void grid.offsetWidth; // fuerza reflow para poder repetir la animacion
+
+  const earned = cards.filter((card) => !card.classList.contains('t0'))
+    .sort((a, b) => gradeOfCard(a) - gradeOfCard(b));
+  const locked = cards.filter((card) => card.classList.contains('t0'));
+  const step = options.quick ? 55 : 170;
+  const withSound = !options.quick;
+
+  earned.forEach((card, i) => {
+    const last = i === earned.length - 1;
+    const delay = last ? i * step + (options.quick ? 0 : 380) : i * step;
+    const timer = setTimeout(() => {
+      card.classList.add(last ? 'finale' : 'show');
+      if (!withSound) {
+        return;
+      }
+      if (last) {
+        chord([523, 659, 784, 1047]);
+        if (navigator.vibrate) {
+          navigator.vibrate([40, 60, 120]);
+        }
+      } else {
+        blip(330 + i * 45, 0.11);
+      }
+    }, delay);
+    if (!options.quick) {
+      showTimers.push(timer);
+    }
+  });
+
+  const after = earned.length ? earned.length * step + (options.quick ? 60 : 900) : 0;
+  locked.forEach((card, i) => {
+    const timer = setTimeout(() => card.classList.add('show'), after + i * (options.quick ? 25 : 45));
+    if (!options.quick) {
+      showTimers.push(timer);
+    }
+  });
+
+  const end = setTimeout(() => options.onEnd && options.onEnd(), after + locked.length * 45 + 400);
+  if (!options.quick) {
+    showTimers.push(end);
+  }
+}
+
+// Lee el grado desde la clase tN del articulo.
+function gradeOfCard(card) {
+  const match = /\bt(\d)\b/.exec(card.className);
+  return match ? Number(match[1]) : 0;
+}
+
+// --- Showcase a pantalla completa ---
+function openShow() {
+  state.seenGrades = totalGrades();
+  saveProgress();
+  renderVault();
+
+  chest.classList.add('open');
+  showGrid.innerHTML = medalGrid.innerHTML;
+  showFoot.classList.remove('on');
+  skipHint.classList.remove('hide');
+  showTitle.textContent = 'Abriendo el cofre...';
+  bigChest.classList.remove('open');
+  bigChest.classList.add('shake');
+  show.classList.add('on');
+  showDone = false;
+
+  blip(220, 0.12);
+  setTimeout(() => blip(300, 0.1), 120);
+  showTimers.push(setTimeout(() => {
+    bigChest.classList.remove('shake');
+    bigChest.classList.add('open');
+    blip(520, 0.18);
+    showTitle.textContent = '🏆 ¡Tus medallas!';
+    revealMedals(showGrid, { onEnd: endShow });
+  }, 650));
+}
+
+function endShow() {
+  showDone = true;
+  showTitle.textContent = `🏆 ${totalGrades()} de ${TROPHIES.length * 4} conseguidas`;
+  showFoot.classList.add('on');
+  skipHint.classList.add('hide');
+}
+
+function closeShow(openPanel) {
+  clearShowTimers();
+  show.classList.remove('on');
+  chest.classList.remove('open');
+  if (openPanel) {
+    setTimeout(() => {
+      toggleDrawer('vault', true);
+      revealMedals(medalGrid, { quick: true });
+    }, 180);
+  }
+}
+
+function skipShow() {
+  clearShowTimers();
+  bigChest.classList.remove('shake');
+  bigChest.classList.add('open');
+  Array.from(showGrid.children).forEach((card) => {
+    card.style.animation = 'none';
+    card.style.opacity = card.classList.contains('t0') ? '0.45' : '1';
+  });
+  endShow();
+}
+
+// --- Utilidades de UI ---
+function pulse(node) {
+  node.classList.remove('pulse');
+  void node.offsetWidth; // fuerza reflow para poder repetir la animacion
+  node.classList.add('pulse');
+}
+
+function showToast(message) {
+  const node = document.createElement('div');
+  node.className = 'toast';
+  node.textContent = message;
+  toastHost.appendChild(node);
+  setTimeout(() => node.remove(), 3200);
+}
+
+function toggleDrawer(id, force) {
+  const drawer = id === 'vault' ? vault : quests;
+  const on = force === undefined ? !drawer.classList.contains('on') : Boolean(force);
+  drawer.classList.toggle('on', on);
+  if (id === 'vault' && on) {
+    // Al abrirlo dejan de estar "sin ver".
+    state.seenGrades = totalGrades();
+    saveProgress();
+    renderVault();
+  }
+}
+
+function renderAchievements() {
   renderRank();
+  renderVault();
+  renderMissions();
 }
 
 function unlockAchievement(id) {
@@ -1570,6 +1953,9 @@ function answer(selectedKey) {
     feedbackBox.textContent = `Muy bien. ${challenge.hint} ${challenge.explanation}`;
     updateAchievementsOnSuccess(challenge);
     awardXp(true);
+    bumpMission('ok', 1);
+    bumpMission(`act_${challenge.activity}`, 1);
+    bumpMission('streak', state.streak);
   } else {
     state.streak = 0;
     feedbackBox.className = 'feedback error';
@@ -1577,6 +1963,8 @@ function answer(selectedKey) {
   }
 
   highlightAnswers(selectedKey, correctKey);
+  bumpMission('answers', 1);
+  checkNewGrades();
   correctCount.textContent = state.correct;
   streakCount.textContent = state.streak;
   renderAchievements();
@@ -1607,6 +1995,44 @@ activityButtons.forEach((button) => {
 });
 
 loadProgress();
+refreshMissions();
+// Cierre de los cajones por boton, clic en el fondo y tecla Escape.
+// El cofre no abre el cajon directamente: lanza el showcase a pantalla completa.
+vaultBtn.addEventListener('click', () => {
+  if (vault.classList.contains('on')) {
+    toggleDrawer('vault', false);
+    return;
+  }
+  openShow();
+});
+showToVault.addEventListener('click', () => closeShow(true));
+showClose.addEventListener('click', () => closeShow(false));
+show.addEventListener('click', (event) => {
+  if (event.target.closest('.showfoot')) {
+    return;
+  }
+  if (showDone) {
+    closeShow(false);
+    return;
+  }
+  skipShow(); // tocar en cualquier sitio salta la animacion
+});
+questBtn.addEventListener('click', () => toggleDrawer('quests'));
+document.addEventListener('click', (event) => {
+  const closer = event.target.closest('[data-close]');
+  if (closer) {
+    toggleDrawer(closer.dataset.close, false);
+    return;
+  }
+  if (event.target === vault) toggleDrawer('vault', false);
+  if (event.target === quests) toggleDrawer('quests', false);
+});
+document.addEventListener('keydown', (event) => {
+  if (event.key !== 'Escape') return;
+  toggleDrawer('vault', false);
+  toggleDrawer('quests', false);
+  closeShow(false);
+});
 // El modo guardado debe existir en la actividad guardada; si no, se usa el de por defecto.
 const restoredContent = activityContent[state.activity];
 if (!restoredContent || !restoredContent.modes.some((mode) => mode.key === state.mode)) {
